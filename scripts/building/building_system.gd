@@ -45,8 +45,9 @@ func remove_piece(piece: Node3D) -> void:
 	piece_removed.emit(piece)
 	# Drop 15% of materials
 	var inv = Main.player.get_node("Inventory")
-	for res in piece.build_cost:
-		var drop_qty := int(ceil(piece.build_cost[res] * 0.15))
+	var bp := piece as BuildPiece
+	for res in bp.build_cost:
+		var drop_qty := int(ceil(bp.build_cost[res] * 0.15))
 		if drop_qty > 0:
 			inv.add_item(res, drop_qty)
 	piece.queue_free()

@@ -13,6 +13,6 @@ func _connect_building_signals() -> void:
 			building_sys.invalid_placement.connect(_on_invalid_placement)
 
 func _on_invalid_placement(reason: String) -> void:
-	var hud = get_node_or_null("HUD")
+	var hud = get_tree().current_scene.get_node_or_null("HUD")
 	if hud and hud.has_method("show_message"):
 		hud.show_message(reason)
