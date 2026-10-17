@@ -1,0 +1,45 @@
+[gd_scene load_steps=6 format=3 uid="uid://b1player001"]
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/inventory/inventory.gd" id="2_inv"]
+[ext_resource type="Script" path="res://scripts/player/interaction.gd" id="3_interact"]
+[ext_resource type="Script" path="res://scripts/building/building_system.gd" id="4_build"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.4
+height = 1.8
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+fov = 75.0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_player")
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("2_inv")
+
+[node name="Interaction" type="Node3D" parent="."]
+script = ExtResource("3_interact")
+
+[node name="RayCast3D" type="RayCast3D" parent="Interaction"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+collision_mask = 1
+target_position = Vector3(0, 0, -3)
+
+[node name="BuildingSystem" type="Node3D" parent="."]
+script = ExtResource("4_build")
