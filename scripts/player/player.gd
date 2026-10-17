@@ -38,11 +38,20 @@ func _ready() -> void:
 	thirst = max_thirst
 	configure_difficulty(Main.difficulty)
 
+func _input(event: InputEvent) -> void:
+	# Mouse motion is handled before CanvasLayer/UI input so menus cannot swallow
+	# the camera controls while the gameplay cursor is captured.
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_rotate_camera_from_mouse(event.relative)
+		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("ui_cancel") and not get_tree().paused:
+		_set_gameplay_mouse(Input.mouse_mode != Input.MOUSE_MODE_CAPTURED)
+		get_viewport().set_input_as_handled()
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if not get_tree().paused and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			_set_gameplay_mouse(true)
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		camera_pivot.rotate_x(-event.relative.y * mouse_sensitivity)
-		camera_pivot.rotation.x = clampf(camera_pivot.rotation.x, -PI / 2, PI / 2)
 	if event.is_action_pressed("toggle_camera"):
 		_toggle_camera()
 	if event.is_action_pressed("attack"):
@@ -54,6 +63,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	for index in range(hotbar_tools.size()):
 		if event.is_action_pressed("select_tool_%d" % (index + 1)):
 			active_tool = hotbar_tools[index]
+
+func _rotate_camera_from_mouse(relative: Vector2) -> void:
+	rotate_y(-relative.x * mouse_sensitivity)
+	camera_pivot.rotate_x(-relative.y * mouse_sensitivity)
+	camera_pivot.rotation.x = clampf(camera_pivot.rotation.x, -PI / 2, PI / 2)
+
+func _set_gameplay_mouse(captured: bool) -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if captured else Input.MOUSE_MODE_VISIBLE
 
 func get_active_tool() -> String:
 	var inventory = get_node_or_null("Inventory")
