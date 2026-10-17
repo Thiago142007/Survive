@@ -222,5 +222,8 @@ headless e gráfica a cada entrega.
 - Fase 3: concluída — construção modular com fundação, pilares, paredes, porta e
   teto; modo fantasma com validação; remoção com devolução parcial de recursos;
   upgrades, reparo e estresse estrutural com colapso determinístico.
-- Próxima entrega: Fase 4, mundo procedural e streaming por chunks.
+- Fase 4, bloco inicial: concluído — layout determinístico por seed, cinco biomas,
+  clima/perigo/recursos por ilha, grafo de respawn com até três vizinhos e streaming
+  de chunks com descarte seguro.
+- Próxima entrega: Fase 5, fauna, combate e domesticação.
 
