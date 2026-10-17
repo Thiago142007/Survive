@@ -10,37 +10,51 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 
+[node name="StatusPanel" type="ColorRect" parent="Root"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 220.0
+offset_bottom = 174.0
+color = Color(0.03, 0.06, 0.08, 0.78)
+
+[node name="Title" type="Label" parent="Root"]
+offset_left = 20.0
+offset_top = 14.0
+offset_right = 200.0
+offset_bottom = 38.0
+text = "SURVIVE"
+
 [node name="WoodLabel" type="Label" parent="Root"]
 offset_left = 10.0
-offset_top = 10.0
+offset_top = 42.0
 offset_right = 200.0
 offset_bottom = 35.0
 text = "Madeira: 0"
 
 [node name="StoneLabel" type="Label" parent="Root"]
 offset_left = 10.0
-offset_top = 40.0
+offset_top = 67.0
 offset_right = 200.0
 offset_bottom = 65.0
 text = "Pedra: 0"
 
 [node name="HealthLabel" type="Label" parent="Root"]
 offset_left = 10.0
-offset_top = 70.0
+offset_top = 92.0
 offset_right = 200.0
 offset_bottom = 95.0
 text = "Vida: 100"
 
 [node name="HungerLabel" type="Label" parent="Root"]
 offset_left = 10.0
-offset_top = 100.0
+offset_top = 117.0
 offset_right = 200.0
 offset_bottom = 125.0
 text = "Fome: 100"
 
 [node name="ThirstLabel" type="Label" parent="Root"]
 offset_left = 10.0
-offset_top = 130.0
+offset_top = 142.0
 offset_right = 200.0
 offset_bottom = 155.0
 text = "Sede: 100"

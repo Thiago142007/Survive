@@ -23,6 +23,7 @@ func _generate_water() -> void:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color("#163c58")
 	material.roughness = 0.85
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mesh.material = material
 	water.position.y = -0.3
 
@@ -53,6 +54,7 @@ func _create_island(center: Vector3, radius: float, island_name: String) -> void
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color("#4c6248") if island_name == "central" else Color("#596d4a")
 	material.roughness = 1.0
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mesh.material = material
 	var collision := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
