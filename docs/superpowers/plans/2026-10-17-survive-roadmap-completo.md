@@ -225,5 +225,9 @@ headless e gráfica a cada entrega.
 - Fase 4, bloco inicial: concluído — layout determinístico por seed, cinco biomas,
   clima/perigo/recursos por ilha, grafo de respawn com até três vizinhos e streaming
   de chunks com descarte seguro.
-- Próxima entrega: Fase 5, fauna, combate e domesticação.
+- Fase 5, bloco inicial: concluído — fauna pacífica e predadora com estados de
+  patrulha, fuga e perseguição; percepção por proximidade, ataque, vida, acerto em
+  regiões, imobilização, drops, domesticação básica e combate do jogador com defesa.
+- Próxima entrega: aprofundar Fase 5 com armas à distância, armadura, armadilhas e
+  montaria/domesticação avançada.
 

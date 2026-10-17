@@ -13,7 +13,8 @@ const ISLAND_HEIGHT := 2.5
 const WATER_SIZE := 1400.0
 const RESOURCE_SCENE_PATHS := {
 	"tree": "res://scenes/world/tree.tscn",
-	"rock": "res://scenes/world/rock.tscn"
+	"rock": "res://scenes/world/rock.tscn",
+	"animal": "res://scenes/fauna/animal.tscn"
 }
 const BIOMES := ["temperate", "arid", "tundra", "swamp", "volcanic"]
 const BIOME_COLORS := {
@@ -87,6 +88,8 @@ func _make_descriptor(index: int, island_id: String, center: Vector3, radius: fl
 		"resource_multiplier": snappedf(island_rng.randf_range(0.75, 1.45), 0.01),
 		"tree_count": island_rng.randi_range(3, 7) if index != 0 else 6,
 		"rock_count": island_rng.randi_range(2, 5) if index != 0 else 4,
+		"peaceful_count": island_rng.randi_range(1, 3) if index != 0 else 2,
+		"predator_count": 0 if index == 0 else (2 if danger != "safe" else 1),
 		"chunk": _world_to_chunk(center)
 	}
 
@@ -164,26 +167,52 @@ func _create_island(chunk: Node3D, descriptor: Dictionary) -> void:
 	collision.shape = shape
 	island.add_child(collision)
 	chunk.add_child(island)
-	_spawn_resources(island, descriptor)
+	_spawn_resources(chunk, descriptor)
+	_spawn_fauna(chunk, descriptor)
 
-func _spawn_resources(island: Node3D, descriptor: Dictionary) -> void:
+func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _stable_seed(int(descriptor["index"]), _layout_seed)
 	var tree_scene: PackedScene = load(RESOURCE_SCENE_PATHS["tree"])
 	var rock_scene: PackedScene = load(RESOURCE_SCENE_PATHS["rock"])
 	for _index in range(int(descriptor["tree_count"])):
 		var tree := tree_scene.instantiate()
-		tree.position = _resource_position(rng, float(descriptor["radius"]), 2.5)
-		island.add_child(tree)
+		tree.position = descriptor["center"] + _resource_position(rng, float(descriptor["radius"]), 2.5)
+		chunk.add_child(tree)
 	for _index in range(int(descriptor["rock_count"])):
 		var rock := rock_scene.instantiate()
-		rock.position = _resource_position(rng, float(descriptor["radius"]), 3.5)
-		island.add_child(rock)
+		rock.position = descriptor["center"] + _resource_position(rng, float(descriptor["radius"]), 3.5)
+		chunk.add_child(rock)
 
 func _resource_position(rng: RandomNumberGenerator, radius: float, margin: float) -> Vector3:
 	var angle := rng.randf_range(0.0, TAU)
 	var distance := rng.randf_range(2.0, maxf(2.0, radius - margin))
-	return Vector3(cos(angle) * distance, ISLAND_HEIGHT * 0.5, sin(angle) * distance)
+	return Vector3(cos(angle) * distance, 0.0, sin(angle) * distance)
+
+func _spawn_fauna(chunk: Node3D, descriptor: Dictionary) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _stable_seed(int(descriptor["index"]) + 1000, _layout_seed)
+	var animal_scene: PackedScene = load(RESOURCE_SCENE_PATHS["animal"])
+	for index in range(int(descriptor["peaceful_count"])):
+		var animal: Animal = animal_scene.instantiate()
+		animal.species = "deer" if int(descriptor["index"]) % 2 == 0 else "boar"
+		animal.behavior = Animal.Behavior.PEACEFUL
+		animal.drop_id = "meat"
+		animal.drop_quantity = 2
+		animal.position = descriptor["center"] + _resource_position(rng, float(descriptor["radius"]), 5.0)
+		chunk.add_child(animal)
+	for index in range(int(descriptor["predator_count"])):
+		var animal: Animal = animal_scene.instantiate()
+		animal.species = "wolf"
+		animal.behavior = Animal.Behavior.PREDATOR
+		animal.max_health = 65.0
+		animal.attack_damage = 14.0
+		animal.move_speed = 2.8
+		animal.detection_radius = 16.0
+		animal.drop_id = "hide"
+		animal.drop_quantity = 1
+		animal.position = descriptor["center"] + _resource_position(rng, float(descriptor["radius"]), 5.0)
+		chunk.add_child(animal)
 
 func _generate_water() -> void:
 	if is_instance_valid(_water):

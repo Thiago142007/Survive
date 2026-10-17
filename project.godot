@@ -140,6 +140,16 @@ repair_piece={
 "events": [Object(InputEventKey,"physical_keycode":72,"resource_local_to_scene":false,"resource_name":"","script":null)
 ]
 }
+attack={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":70,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+block={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":66,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
 
 [rendering]
 

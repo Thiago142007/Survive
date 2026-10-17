@@ -17,7 +17,11 @@ func _try_interact() -> void:
 	ray.force_raycast_update()
 	if ray.is_colliding():
 		var collider = ray.get_collider()
-		if collider.has_method("harvest"):
+		if collider.has_method("try_domesticate") and collider.try_domesticate():
+			var hud = get_tree().current_scene.get_node_or_null("HUD")
+			if hud and hud.has_method("show_message"):
+				hud.show_message("Animal domesticado")
+		elif collider.has_method("harvest"):
 			collider.harvest(self, Main.player.get_active_tool())
 
 func register_resource(id: String, qty: int) -> void:

@@ -23,8 +23,12 @@ var energy_enabled: bool = false
 var hunger_rate_multiplier: float = 1.0
 var active_tool: String = "hand"
 var hotbar_tools: Array[String] = ["hand", "knife", "stone_axe", "stone_pickaxe", "shovel"]
+var is_blocking: bool = false
+var _attack_cooldown: float = 0.0
 
 signal survival_stats_changed(health: float, hunger: float, thirst: float)
+signal combat_hit(target: Node, damage: float)
+signal player_damaged(amount: float, remaining_health: float)
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -41,6 +45,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		camera_pivot.rotation.x = clampf(camera_pivot.rotation.x, -PI / 2, PI / 2)
 	if event.is_action_pressed("toggle_camera"):
 		_toggle_camera()
+	if event.is_action_pressed("attack"):
+		_perform_attack()
+	if event.is_action_pressed("block"):
+		is_blocking = true
+	if event.is_action_released("block"):
+		is_blocking = false
 	for index in range(hotbar_tools.size()):
 		if event.is_action_pressed("select_tool_%d" % (index + 1)):
 			active_tool = hotbar_tools[index]
@@ -63,6 +73,7 @@ func _toggle_camera() -> void:
 	camera.position.z = _cam_distance
 
 func _physics_process(delta: float) -> void:
+	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	var current_speed := sprint_speed if Input.is_action_pressed("sprint") else speed
@@ -80,6 +91,39 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= 9.8 * delta
 	move_and_slide()
 	_update_survival(delta, current_speed)
+
+func _perform_attack() -> void:
+	if _attack_cooldown > 0.0 or is_blocking:
+		return
+	_attack_cooldown = 0.45
+	var damage := _get_attack_damage()
+	var from := camera.global_position
+	var to := from + camera.global_transform.basis.z * -3.2
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.exclude = [self]
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if not result:
+		return
+	var target = result.collider
+	if target.has_method("receive_hit"):
+		var hit_region := "legs" if result.position.y < target.global_position.y + 0.45 else "body"
+		target.receive_hit(damage, hit_region, self)
+		combat_hit.emit(target, damage)
+
+func _get_attack_damage() -> float:
+	match get_active_tool():
+		"knife": return 16.0
+		"stone_axe": return 18.0
+		"stone_pickaxe": return 14.0
+		"spear": return 28.0
+		_: return 8.0
+
+func take_damage(amount: float) -> void:
+	var final_amount := amount * (0.35 if is_blocking else 1.0)
+	health = maxf(0.0, health - final_amount)
+	player_damaged.emit(final_amount, health)
+	if health <= 0.0:
+		_respawn()
 
 func _update_survival(delta: float, current_speed: float) -> void:
 	var movement_cost := 0.015 if velocity.length() > 0.2 else 0.0
