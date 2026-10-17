@@ -1,0 +1,41 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/crafting_ui.gd" id="1_crafting"]
+
+[node name="CraftingUI" type="CanvasLayer"]
+script = ExtResource("1_crafting")
+
+[node name="Panel" type="Panel" parent="."]
+offset_left = 330.0
+offset_top = 120.0
+offset_right = 950.0
+offset_bottom = 600.0
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+offset_left = 28.0
+offset_top = 22.0
+offset_right = 592.0
+offset_bottom = 458.0
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Panel/Margin/VBox"]
+text = "CRAFTING"
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="Panel/Margin/VBox"]
+text = "Pressione C para fechar"
+horizontal_alignment = 1
+
+[node name="RecipeList" type="VBoxContainer" parent="Panel/Margin/VBox"]
+theme_override_constants/separation = 8
+
+[node name="Status" type="Label" parent="Panel/Margin/VBox"]
+text = "Escolha uma receita"
+horizontal_alignment = 1

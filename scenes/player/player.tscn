@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://b1player001"]
+[gd_scene load_steps=6 format=3 uid="uid://b1player001"]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/inventory/inventory.gd" id="2_inv"]
 [ext_resource type="Script" path="res://scripts/player/interaction.gd" id="3_interact"]
 [ext_resource type="Script" path="res://scripts/building/building_system.gd" id="4_build"]
+[ext_resource type="Script" path="res://scripts/crafting/crafting_system.gd" id="5_crafting"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.4
@@ -36,3 +37,6 @@ target_position = Vector3(0, 0, -3)
 
 [node name="BuildingSystem" type="Node3D" parent="."]
 script = ExtResource("4_build")
+
+[node name="CraftingSystem" type="Node" parent="."]
+script = ExtResource("5_crafting")

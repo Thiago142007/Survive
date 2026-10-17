@@ -90,6 +90,11 @@ sprint={
 "events": [Object(InputEventKey,"physical_keycode":16777237,"resource_local_to_scene":false,"resource_name":"","script":null)
 ]
 }
+open_crafting={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":67,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
 
 [rendering]
 
