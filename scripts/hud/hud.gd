@@ -5,6 +5,9 @@ class_name HUD
 @onready var stone_label: Label = $Root/StoneLabel
 @onready var crosshair: Label = $Root/Crosshair
 @onready var message_label: Label = $Root/MessageLabel
+@onready var health_label: Label = $Root/HealthLabel
+@onready var hunger_label: Label = $Root/HungerLabel
+@onready var thirst_label: Label = $Root/ThirstLabel
 
 var _inv_cache: Node = null
 
@@ -14,6 +17,10 @@ func _process(_delta: float) -> void:
 	if _inv_cache:
 		wood_label.text = "Madeira: %d" % _inv_cache.get_count("wood")
 		stone_label.text = "Pedra: %d" % _inv_cache.get_count("stone")
+	if Main.player:
+		health_label.text = "Vida: %d" % Main.player.health
+		hunger_label.text = "Fome: %d" % Main.player.hunger
+		thirst_label.text = "Sede: %d" % Main.player.thirst
 
 func show_message(text: String, duration: float = 2.0) -> void:
 	message_label.text = text

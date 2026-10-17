@@ -4,16 +4,27 @@ extends CharacterBody3D
 @export var sprint_speed: float = 8.0
 @export var jump_velocity: float = 4.5
 @export var mouse_sensitivity: float = 0.002
+@export var max_health: float = 100.0
+@export var max_hunger: float = 100.0
+@export var max_thirst: float = 100.0
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var camera: Camera3D = $CameraPivot/Camera3D
 
 var _cam_mode: int = 0  # 0=1st, 1=2nd, 2=3rd
 var _cam_distance: float = 0.0
+var health: float = 100.0
+var hunger: float = 100.0
+var thirst: float = 100.0
+
+signal survival_stats_changed(health: float, hunger: float, thirst: float)
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Main.player = self
+	health = max_health
+	hunger = max_hunger
+	thirst = max_thirst
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
@@ -49,3 +60,30 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= 9.8 * delta
 	move_and_slide()
+	_update_survival(delta, current_speed)
+
+func _update_survival(delta: float, current_speed: float) -> void:
+	var movement_cost := 0.015 if velocity.length() > 0.2 else 0.0
+	var sprint_cost := 0.025 if current_speed > speed else 0.0
+	hunger = clampf(hunger - delta * (0.035 + movement_cost + sprint_cost), 0.0, max_hunger)
+	thirst = clampf(thirst - delta * (0.055 + movement_cost * 1.5 + sprint_cost), 0.0, max_thirst)
+	if hunger <= 0.0 or thirst <= 0.0:
+		health = maxf(0.0, health - delta * 2.0)
+	elif hunger > 60.0 and thirst > 60.0:
+		health = minf(max_health, health + delta * 0.35)
+	survival_stats_changed.emit(health, hunger, thirst)
+	if health <= 0.0:
+		_respawn()
+
+func _respawn() -> void:
+	global_position = Vector3(0.0, 2.0, 0.0)
+	velocity = Vector3.ZERO
+	health = max_health
+	hunger = max_hunger * 0.5
+	thirst = max_thirst * 0.5
+	var inventory := get_node_or_null("Inventory")
+	if inventory:
+		inventory.slots.clear()
+	var hud = get_tree().current_scene.get_node_or_null("HUD")
+	if hud and hud.has_method("show_message"):
+		hud.show_message("Você morreu e renasceu. Seus itens foram perdidos.")
