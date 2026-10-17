@@ -2,6 +2,7 @@ extends Node3D
 class_name BuildingSystem
 
 const GRID_SIZE := 2.0
+const BUILD_PIECE_SCRIPT = preload("res://scripts/building/build_piece.gd")
 var placed_pieces: Array[Node3D] = []
 var ghost_piece: Node3D = null
 var _build_mode: bool = false
@@ -20,18 +21,18 @@ func snap_to_grid(pos: Vector3) -> Vector3:
 		round(pos.z / GRID_SIZE) * GRID_SIZE
 	)
 
-func can_place(piece: BuildPiece, pos: Vector3, rot: Vector3) -> bool:
+func can_place(piece: Node3D, pos: Vector3, rot: Vector3) -> bool:
 	var snapped := snap_to_grid(pos)
 	# Check if already a piece at the same cell
 	for p in placed_pieces:
 		if p.position == snapped and p.rotation == rot:
 			return false
 	# If not a foundation, check for a connected foundation below
-	if not piece.is_foundation:
+	if not piece.get("is_foundation"):
 		var has_foundation_below := false
 		var below_pos := snapped + Vector3(0, -GRID_SIZE, 0)
 		for p in placed_pieces:
-			if p.position == below_pos and (p as BuildPiece).is_foundation:
+			if p.position == below_pos and p.get("is_foundation"):
 				has_foundation_below = true
 				break
 		if not has_foundation_below:
@@ -49,7 +50,7 @@ func remove_piece(piece: Node3D) -> void:
 	piece_removed.emit(piece)
 	# Drop 15% of materials
 	var inv = Main.player.get_node("Inventory")
-	var bp := piece as BuildPiece
+	var bp = piece
 	for res in bp.build_cost:
 		var drop_qty := int(ceil(bp.build_cost[res] * 0.15))
 		if drop_qty > 0:
@@ -71,7 +72,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _confirm_placement() -> void:
 	if not ghost_piece:
 		return
-	var bp := ghost_piece as BuildPiece
+	var bp = ghost_piece
 	if not _can_afford(bp.build_cost):
 		invalid_placement.emit("Not enough materials")
 		return
@@ -105,7 +106,7 @@ func _spawn_ghost() -> void:
 func _process(_delta: float) -> void:
 	if _build_mode and ghost_piece:
 		ghost_piece.position = _get_ground_position()
-		var bp := ghost_piece as BuildPiece
+		var bp = ghost_piece
 		if not _can_afford(bp.build_cost):
 			ghost_piece.get_node("MeshInstance3D").material_override.albedo_color = Color(1, 0, 0, 0.5)
 		else:
@@ -124,9 +125,9 @@ func _get_ground_position() -> Vector3:
 	var result = get_tree().root.world_3d.direct_space_state.intersect_ray(query)
 	if result:
 		# If looking at an existing foundation, spawn on top of it
-		if result.collider is BuildPiece:
-			var bp := result.collider as BuildPiece
-			if bp.is_foundation:
+		if result.collider.get_script() == BUILD_PIECE_SCRIPT:
+			var bp = result.collider
+			if bp.get("is_foundation"):
 				return bp.position + Vector3(0, GRID_SIZE, 0)
 		return result.position + Vector3(0, 0.1, 0)
 	return Vector3(0, 0.1, 0)
@@ -159,5 +160,5 @@ func _remove_looking_at() -> void:
 	var to = from + cam.global_transform.basis.z * -5
 	var query = PhysicsRayQueryParameters3D.create(from, to)
 	var result = get_tree().root.world_3d.direct_space_state.intersect_ray(query)
-	if result and result.collider is BuildPiece:
+	if result and result.collider.get_script() == BUILD_PIECE_SCRIPT:
 		remove_piece(result.collider)

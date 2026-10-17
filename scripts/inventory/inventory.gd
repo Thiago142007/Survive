@@ -4,7 +4,7 @@ class_name Inventory
 var slots: Array[Dictionary] = []  # [{ "id": String, "qty": int, "data": ItemData }]
 const MAX_STACK := 100
 
-func add_item(id: String, qty: int, data: ItemData = null) -> bool:
+func add_item(id: String, qty: int, data: Resource = null) -> bool:
 	# First, try to stack into existing slots
 	for slot in slots:
 		if slot["id"] == id and slot["qty"] < MAX_STACK:
