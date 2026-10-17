@@ -4,6 +4,7 @@ class_name Harvestable
 @export var resource_id: String = "wood"
 @export var resource_qty: int = 3
 @export var respawn_time: float = 30.0
+@export var preferred_tool: String = ""
 
 var _depleted: bool = false
 
@@ -28,14 +29,22 @@ func _apply_visual_materials() -> void:
 		canopy_mesh.material = canopy_material
 		canopy.mesh = canopy_mesh
 
-func harvest(interaction: Node) -> void:
+func harvest(interaction: Node, tool_id: String = "hand") -> void:
 	if _depleted:
 		return
-	interaction.register_resource(resource_id, resource_qty)
+	var amount := resource_qty
+	if tool_id == preferred_tool and not preferred_tool.is_empty():
+		amount += 2
+	interaction.register_resource(resource_id, amount)
 	_depleted = true
 	$MeshInstance3D.visible = false
+	var canopy := get_node_or_null("Canopy") as MeshInstance3D
+	if canopy:
+		canopy.visible = false
 	$CollisionShape3D.set_deferred("disabled", true)
 	await get_tree().create_timer(respawn_time).timeout
 	_depleted = false
 	$MeshInstance3D.visible = true
+	if canopy:
+		canopy.visible = true
 	$CollisionShape3D.set_deferred("disabled", false)

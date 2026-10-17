@@ -95,6 +95,36 @@ open_crafting={
 "events": [Object(InputEventKey,"physical_keycode":67,"resource_local_to_scene":false,"resource_name":"","script":null)
 ]
 }
+open_research={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":89,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+select_tool_1={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":50,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+select_tool_2={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":51,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+select_tool_3={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":52,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+select_tool_4={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":53,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+select_tool_5={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":54,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
 
 [rendering]
 

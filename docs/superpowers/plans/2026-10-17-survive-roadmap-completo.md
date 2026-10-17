@@ -212,3 +212,12 @@ sobrevivência, exploração, Research Tree e qualidade da base.
 Começar pela Fase 0: corrigir materiais, iluminação, escala da ilha, posição da
 câmera e HUD; validar visualmente essa primeira cena antes de sistemas maiores.
 
+## 8. Histórico de execução
+
+- Fase 0: concluída — correções visuais, materiais, câmera, HUD e validação gráfica.
+- Fase 1, bloco inicial: concluído — criação de mundo, seed e dificuldades.
+- Fase 2, bloco inicial: concluído — crafting, ferramentas selecionáveis, coleta com
+  bônus por ferramenta, XP, níveis e Research Tree.
+- Próxima entrega: inventário visual/hotbar completo e consumíveis da Fase 1, seguido
+  da expansão de ferramentas e combate da Fase 2.
+

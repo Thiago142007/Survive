@@ -21,6 +21,8 @@ var difficulty: String = "normal"
 var thirst_enabled: bool = true
 var energy_enabled: bool = false
 var hunger_rate_multiplier: float = 1.0
+var active_tool: String = "hand"
+var hotbar_tools: Array[String] = ["hand", "knife", "stone_axe", "stone_pickaxe", "shovel"]
 
 signal survival_stats_changed(health: float, hunger: float, thirst: float)
 
@@ -39,6 +41,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		camera_pivot.rotation.x = clampf(camera_pivot.rotation.x, -PI / 2, PI / 2)
 	if event.is_action_pressed("toggle_camera"):
 		_toggle_camera()
+	for index in range(hotbar_tools.size()):
+		if event.is_action_pressed("select_tool_%d" % (index + 1)):
+			active_tool = hotbar_tools[index]
+
+func get_active_tool() -> String:
+	var inventory = get_node_or_null("Inventory")
+	if active_tool != "hand" and (not inventory or inventory.get_count(active_tool) <= 0):
+		return "hand"
+	return active_tool
 
 func _toggle_camera() -> void:
 	_cam_mode = (_cam_mode + 1) % 3

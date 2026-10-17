@@ -18,6 +18,7 @@ script = ExtResource("1_harvest")
 resource_id = "stone"
 resource_qty = 2
 respawn_time = 30.0
+preferred_tool = "stone_pickaxe"
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)

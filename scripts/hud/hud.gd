@@ -9,6 +9,7 @@ class_name HUD
 @onready var hunger_label: Label = $Root/HungerLabel
 @onready var thirst_label: Label = $Root/ThirstLabel
 @onready var energy_label: Label = $Root/EnergyLabel
+@onready var tool_label: Label = $Root/ToolLabel
 
 var _inv_cache: Node = null
 
@@ -25,6 +26,11 @@ func _process(_delta: float) -> void:
 		thirst_label.visible = Main.difficulty != "easy"
 		energy_label.visible = Main.difficulty == "hard"
 		energy_label.text = "Energia: %d" % Main.player.energy
+		tool_label.text = "Ferramenta: %s" % _tool_name(Main.player.get_active_tool())
+
+func _tool_name(tool_id: String) -> String:
+	var names := {"hand": "Mãos", "knife": "Faca", "stone_axe": "Machado", "stone_pickaxe": "Picareta", "shovel": "Pá"}
+	return names.get(tool_id, tool_id)
 
 func show_message(text: String, duration: float = 2.0) -> void:
 	message_label.text = text

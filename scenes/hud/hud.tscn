@@ -67,6 +67,13 @@ offset_bottom = 192.0
 text = "Energia: 100"
 visible = false
 
+[node name="ToolLabel" type="Label" parent="Root"]
+offset_left = 10.0
+offset_top = 192.0
+offset_right = 240.0
+offset_bottom = 217.0
+text = "Ferramenta: Mãos"
+
 [node name="Crosshair" type="Label" parent="Root"]
 anchors_preset = 8
 anchor_left = 0.5

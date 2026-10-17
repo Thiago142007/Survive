@@ -18,9 +18,12 @@ func _try_interact() -> void:
 	if ray.is_colliding():
 		var collider = ray.get_collider()
 		if collider.has_method("harvest"):
-			collider.harvest(self)
+			collider.harvest(self, Main.player.get_active_tool())
 
 func register_resource(id: String, qty: int) -> void:
 	var inv = Main.player.get_node("Inventory")
 	inv.add_item(id, qty)
+	var research = Main.player.get_node_or_null("ResearchSystem")
+	if research:
+		research.add_experience(maxi(1, qty * 2))
 	item_collected.emit(id, qty)
