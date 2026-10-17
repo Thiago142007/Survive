@@ -6,11 +6,14 @@ class_name HUD
 @onready var crosshair: Label = $Root/Crosshair
 @onready var message_label: Label = $Root/MessageLabel
 
+var _inv_cache: Node = null
+
 func _process(_delta: float) -> void:
-	if Main.player:
-		var inv = Main.player.get_node("Inventory")
-		wood_label.text = "Madeira: %d" % inv.get_count("wood")
-		stone_label.text = "Pedra: %d" % inv.get_count("stone")
+	if Main.player and not _inv_cache:
+		_inv_cache = Main.player.get_node("Inventory")
+	if _inv_cache:
+		wood_label.text = "Madeira: %d" % _inv_cache.get_count("wood")
+		stone_label.text = "Pedra: %d" % _inv_cache.get_count("stone")
 
 func show_message(text: String, duration: float = 2.0) -> void:
 	message_label.text = text
