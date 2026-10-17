@@ -44,7 +44,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0, current_speed)
 		velocity.z = move_toward(velocity.z, 0, current_speed)
-	if is_on_floor() and Input.is_action_pressed("jump"):
+	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		velocity.y = jump_velocity
-	velocity.y -= 9.8 * delta
+	if not is_on_floor():
+		velocity.y -= 9.8 * delta
 	move_and_slide()

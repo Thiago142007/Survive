@@ -8,7 +8,7 @@ size = Vector3(2, 0.2, 2)
 [sub_resource type="BoxShape3D" id="BoxShape3D_foundation"]
 size = Vector3(2, 0.2, 2)
 
-[node name="Foundation" type="Node3D"]
+[node name="Foundation" type="StaticBody3D"]
 script = ExtResource("1_bp")
 piece_id = "foundation"
 display_name = "Foundation"

@@ -101,6 +101,7 @@ func _spawn_ghost() -> void:
 	mat.albedo_color = Color(1, 1, 1, 0.5)
 	mat.transparency = 1
 	ghost_piece.get_node("MeshInstance3D").material_override = mat
+	ghost_piece.get_node("CollisionShape3D").disabled = true
 	get_tree().current_scene.add_child.call_deferred(ghost_piece)
 
 func _process(_delta: float) -> void:
