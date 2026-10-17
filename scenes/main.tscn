@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/tree.tscn" id="4_tree"]
 [ext_resource type="PackedScene" path="res://scenes/world/rock.tscn" id="5_rock"]
 [ext_resource type="PackedScene" path="res://scenes/hud/hud.tscn" id="6_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/main_menu.tscn" id="7_menu"]
 
 [sub_resource type="Environment" id="Environment_env"]
 background_mode = 1
@@ -56,3 +57,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -3)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -6)
 
 [node name="HUD" parent="." instance=ExtResource("6_hud")]
+
+[node name="MainMenu" parent="." instance=ExtResource("7_menu")]

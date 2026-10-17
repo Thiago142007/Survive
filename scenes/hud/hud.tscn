@@ -59,6 +59,14 @@ offset_right = 200.0
 offset_bottom = 155.0
 text = "Sede: 100"
 
+[node name="EnergyLabel" type="Label" parent="Root"]
+offset_left = 10.0
+offset_top = 167.0
+offset_right = 200.0
+offset_bottom = 192.0
+text = "Energia: 100"
+visible = false
+
 [node name="Crosshair" type="Label" parent="Root"]
 anchors_preset = 8
 anchor_left = 0.5

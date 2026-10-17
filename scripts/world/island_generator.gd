@@ -10,6 +10,15 @@ const ISLAND_HEIGHT := 2.5
 const WATER_SIZE := 900.0
 
 func _ready() -> void:
+	if Main:
+		seed = Main.world_seed
+	_generate_water()
+	_generate_islands()
+
+func apply_seed(new_seed: int) -> void:
+	seed = new_seed
+	for child in get_children():
+		child.free()
 	_generate_water()
 	_generate_islands()
 

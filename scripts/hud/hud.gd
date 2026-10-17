@@ -8,6 +8,7 @@ class_name HUD
 @onready var health_label: Label = $Root/HealthLabel
 @onready var hunger_label: Label = $Root/HungerLabel
 @onready var thirst_label: Label = $Root/ThirstLabel
+@onready var energy_label: Label = $Root/EnergyLabel
 
 var _inv_cache: Node = null
 
@@ -21,6 +22,9 @@ func _process(_delta: float) -> void:
 		health_label.text = "Vida: %d" % Main.player.health
 		hunger_label.text = "Fome: %d" % Main.player.hunger
 		thirst_label.text = "Sede: %d" % Main.player.thirst
+		thirst_label.visible = Main.difficulty != "easy"
+		energy_label.visible = Main.difficulty == "hard"
+		energy_label.text = "Energia: %d" % Main.player.energy
 
 func show_message(text: String, duration: float = 2.0) -> void:
 	message_label.text = text
