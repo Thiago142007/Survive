@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3 uid="uid://b1pillar0001"]
+
+[ext_resource type="Script" path="res://scripts/building/build_piece.gd" id="1_bp"]
+
+[sub_resource type="BoxMesh" id="Mesh_piece"]
+size = Vector3(2, 0.2, 2)
+
+[sub_resource type="BoxShape3D" id="Shape_piece"]
+size = Vector3(2, 0.2, 2)
+
+[node name="PillarFoundation" type="StaticBody3D"]
+script = ExtResource("1_bp")
+piece_id = "pillar_foundation"
+display_name = "Foundation with pillars"
+material_type = "wood"
+build_cost = {"wood": 14}
+health = 140
+is_foundation = true
+stress_limit = 100.0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0, 0)
+mesh = SubResource("Mesh_piece")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0, 0)
+shape = SubResource("Shape_piece")
+

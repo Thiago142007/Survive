@@ -125,6 +125,21 @@ select_tool_5={
 "events": [Object(InputEventKey,"physical_keycode":54,"resource_local_to_scene":false,"resource_name":"","script":null)
 ]
 }
+cycle_build_piece={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":81,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+upgrade_piece={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":85,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+repair_piece={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":72,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
 
 [rendering]
 

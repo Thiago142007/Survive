@@ -209,8 +209,9 @@ sobrevivência, exploração, Research Tree e qualidade da base.
 
 ## 7. Próximo trabalho
 
-Começar pela Fase 0: corrigir materiais, iluminação, escala da ilha, posição da
-câmera e HUD; validar visualmente essa primeira cena antes de sistemas maiores.
+Continuar a Fase 4 com mundo procedural e streaming: biomas, chunks, ilhas com
+identidade própria e descarte seguro de regiões distantes, mantendo a validação
+headless e gráfica a cada entrega.
 
 ## 8. Histórico de execução
 
@@ -218,6 +219,8 @@ câmera e HUD; validar visualmente essa primeira cena antes de sistemas maiores.
 - Fase 1, bloco inicial: concluído — criação de mundo, seed e dificuldades.
 - Fase 2, bloco inicial: concluído — crafting, ferramentas selecionáveis, coleta com
   bônus por ferramenta, XP, níveis e Research Tree.
-- Próxima entrega: inventário visual/hotbar completo e consumíveis da Fase 1, seguido
-  da expansão de ferramentas e combate da Fase 2.
+- Fase 3: concluída — construção modular com fundação, pilares, paredes, porta e
+  teto; modo fantasma com validação; remoção com devolução parcial de recursos;
+  upgrades, reparo e estresse estrutural com colapso determinístico.
+- Próxima entrega: Fase 4, mundo procedural e streaming por chunks.
 
