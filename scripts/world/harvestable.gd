@@ -35,6 +35,10 @@ func harvest(interaction: Node, tool_id: String = "hand") -> void:
 	var amount := resource_qty
 	if tool_id == preferred_tool and not preferred_tool.is_empty():
 		amount += 2
+	if resource_id == "wood":
+		_request_effect(&"wood_hit", global_position, &"wood_splinters")
+	else:
+		_request_effect(&"stone_hit", global_position, &"stone_sparks")
 	interaction.register_resource(resource_id, amount)
 	_depleted = true
 	$MeshInstance3D.visible = false
@@ -48,3 +52,13 @@ func harvest(interaction: Node, tool_id: String = "hand") -> void:
 	if canopy:
 		canopy.visible = true
 	$CollisionShape3D.set_deferred("disabled", false)
+
+func _request_effect(effect_id: StringName, position: Vector3, vfx_id: StringName = &"") -> void:
+	if not is_inside_tree():
+		return
+	var effects := get_node_or_null("/root/Effects")
+	if not effects:
+		return
+	effects.play_world(effect_id, position)
+	if not vfx_id.is_empty():
+		effects.spawn_vfx(vfx_id, position)

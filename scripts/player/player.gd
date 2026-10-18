@@ -25,18 +25,22 @@ var active_tool: String = "hand"
 var hotbar_tools: Array[String] = ["hand", "knife", "stone_axe", "stone_pickaxe", "shovel"]
 var is_blocking: bool = false
 var _attack_cooldown: float = 0.0
+var _footstep_elapsed: float = 0.0
 
 signal survival_stats_changed(health: float, hunger: float, thirst: float)
 signal combat_hit(target: Node, damage: float)
 signal player_damaged(amount: float, remaining_health: float)
+signal respawned(position: Vector3)
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	Main.player = self
+	var main := get_node_or_null("/root/Main")
+	if main:
+		main.player = self
 	health = max_health
 	hunger = max_hunger
 	thirst = max_thirst
-	configure_difficulty(Main.difficulty)
+	configure_difficulty(main.difficulty if main else "normal")
 
 func _input(event: InputEvent) -> void:
 	# Mouse motion is handled before CanvasLayer/UI input so menus cannot swallow
@@ -107,6 +111,7 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= 9.8 * delta
 	move_and_slide()
+	_advance_footsteps(delta, is_on_floor(), Vector2(velocity.x, velocity.z).length(), current_speed > speed)
 	_update_survival(delta, current_speed)
 
 func _perform_attack() -> void:
@@ -115,6 +120,7 @@ func _perform_attack() -> void:
 	_attack_cooldown = 0.45
 	var damage := _get_attack_damage()
 	var from := camera.global_position
+	_request_effect(&"attack_swing", from, &"slash")
 	var to := from + camera.global_transform.basis.z * -3.2
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.exclude = [self]
@@ -139,8 +145,21 @@ func take_damage(amount: float) -> void:
 	var final_amount := amount * (0.35 if is_blocking else 1.0)
 	health = maxf(0.0, health - final_amount)
 	player_damaged.emit(final_amount, health)
+	if final_amount > 0.0:
+		_request_effect(&"player_hurt", global_position, &"damage")
 	if health <= 0.0:
 		_respawn()
+
+func _advance_footsteps(delta: float, grounded: bool, planar_speed: float, sprinting: bool) -> void:
+	if not grounded or planar_speed <= 0.2:
+		_footstep_elapsed = 0.0
+		return
+	_footstep_elapsed += delta
+	var interval := 0.32 if sprinting else 0.5
+	if _footstep_elapsed < interval:
+		return
+	_footstep_elapsed = fmod(_footstep_elapsed, interval)
+	_request_effect(&"footstep_grass", global_position)
 
 func _update_survival(delta: float, current_speed: float) -> void:
 	var movement_cost := 0.015 if velocity.length() > 0.2 else 0.0
@@ -175,6 +194,7 @@ func configure_difficulty(new_difficulty: String) -> void:
 	hunger_rate_multiplier = 0.55 if difficulty == "easy" else 1.0
 
 func _respawn() -> void:
+	_request_effect(&"player_down", global_position)
 	global_position = Vector3(0.0, 2.0, 0.0)
 	velocity = Vector3.ZERO
 	health = max_health
@@ -183,6 +203,18 @@ func _respawn() -> void:
 	var inventory := get_node_or_null("Inventory")
 	if inventory:
 		inventory.slots.clear()
-	var hud = get_tree().current_scene.get_node_or_null("HUD")
+	var current_scene := get_tree().current_scene
+	var hud = current_scene.get_node_or_null("HUD") if current_scene else null
 	if hud and hud.has_method("show_message"):
 		hud.show_message("Você morreu e renasceu. Seus itens foram perdidos.")
+	respawned.emit(global_position)
+
+func _request_effect(effect_id: StringName, position: Vector3, vfx_id: StringName = &"") -> void:
+	if not is_inside_tree():
+		return
+	var effects := get_node_or_null("/root/Effects")
+	if not effects:
+		return
+	effects.play_world(effect_id, position)
+	if not vfx_id.is_empty():
+		effects.spawn_vfx(vfx_id, position)

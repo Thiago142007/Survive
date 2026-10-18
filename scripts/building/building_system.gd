@@ -116,6 +116,7 @@ func place_piece(piece: Node3D) -> void:
 	piece.position = snap_to_grid(piece.position)
 	placed_pieces.append(piece)
 	piece_placed.emit(piece)
+	_request_effect(&"build_place", piece.global_position if piece.is_inside_tree() else piece.position, &"dust")
 
 func remove_piece(piece: Node3D) -> void:
 	if not piece or not placed_pieces.has(piece):
@@ -131,6 +132,7 @@ func remove_piece(piece: Node3D) -> void:
 		if neighbor.position.distance_to(piece.position) <= GRID_SIZE * 1.5:
 			neighbor.add_stress(25.0)
 	piece_removed.emit(piece)
+	_request_effect(&"build_remove", piece.global_position if piece.is_inside_tree() else piece.position, &"wood_splinters")
 	piece.queue_free()
 	call_deferred("_evaluate_structure")
 
@@ -237,30 +239,40 @@ func _remove_looking_at() -> void:
 
 func _upgrade_looking_at() -> void:
 	var target := _get_build_piece_looking_at()
+	upgrade_piece(target)
+
+func upgrade_piece(target: Node3D) -> bool:
 	if not target:
-		return
+		return false
 	var cost: Dictionary = target.get_next_improvement_cost()
 	if target.get("improvement_level") >= target.get_max_improvements():
 		invalid_placement.emit("Esta peça já está no nível máximo")
-		return
+		return false
 	if not _can_afford(cost):
 		invalid_placement.emit("Materiais insuficientes para melhorar")
-		return
+		return false
 	_deduct_cost(cost)
 	target.upgrade()
 	invalid_placement.emit("Construção melhorada")
+	_request_effect(&"build_upgrade", target.global_position if target.is_inside_tree() else target.position, &"stone_sparks")
+	return true
 
 func _repair_looking_at() -> void:
 	var target := _get_build_piece_looking_at()
+	repair_piece(target)
+
+func repair_piece(target: Node3D) -> bool:
 	if not target:
-		return
+		return false
 	var cost: Dictionary = target.get_repair_cost()
 	if not _can_afford(cost):
 		invalid_placement.emit("Materiais insuficientes para reparar")
-		return
+		return false
 	_deduct_cost(cost)
 	target.repair()
 	invalid_placement.emit("Construção reparada")
+	_request_effect(&"build_repair", target.global_position if target.is_inside_tree() else target.position, &"dust")
+	return true
 
 func _get_build_piece_looking_at() -> Node3D:
 	var player := _get_player()
@@ -283,3 +295,13 @@ func _piece_display_name(piece_id: String) -> String:
 func _get_player() -> Node3D:
 	var main := get_node_or_null("/root/Main")
 	return main.get("player") as Node3D if main else null
+
+func _request_effect(effect_id: StringName, position: Vector3, vfx_id: StringName = &"") -> void:
+	if not is_inside_tree():
+		return
+	var effects := get_node_or_null("/root/Effects")
+	if not effects:
+		return
+	effects.play_world(effect_id, position)
+	if not vfx_id.is_empty():
+		effects.spawn_vfx(vfx_id, position)

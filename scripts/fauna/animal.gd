@@ -92,6 +92,7 @@ func receive_hit(amount: float, hit_region: String = "body", _source: Node = nul
 		return
 	health = maxf(0.0, health - final_amount)
 	damaged.emit(final_amount, health)
+	_request_effect(&"animal_hit", global_position, &"damage")
 	if health <= 0.0:
 		_die()
 
@@ -119,6 +120,7 @@ func _attack_player(player: Node3D) -> void:
 func _die() -> void:
 	state = State.DEAD
 	velocity = Vector3.ZERO
+	_request_effect(&"animal_death", global_position, &"dust")
 	var player := _get_player()
 	if player:
 		var inventory: Node = player.get_node_or_null("Inventory")
@@ -151,3 +153,13 @@ func _get_player() -> Node3D:
 	var main := get_node_or_null("/root/Main")
 	var player = main.get("player") if main else null
 	return player as Node3D if player and is_instance_valid(player) else null
+
+func _request_effect(effect_id: StringName, position: Vector3, vfx_id: StringName = &"") -> void:
+	if not is_inside_tree():
+		return
+	var effects := get_node_or_null("/root/Effects")
+	if not effects:
+		return
+	effects.play_world(effect_id, position)
+	if not vfx_id.is_empty():
+		effects.spawn_vfx(vfx_id, position)

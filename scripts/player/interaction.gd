@@ -22,12 +22,29 @@ func _try_interact() -> void:
 			if hud and hud.has_method("show_message"):
 				hud.show_message("Animal domesticado")
 		elif collider.has_method("harvest"):
-			collider.harvest(self, Main.player.get_active_tool())
+			var main := get_node_or_null("/root/Main")
+			var player = main.get("player") if main else null
+			collider.harvest(self, player.get_active_tool() if player else "hand")
 
 func register_resource(id: String, qty: int) -> void:
-	var inv = Main.player.get_node("Inventory")
+	var main := get_node_or_null("/root/Main")
+	var player = main.get("player") if main else null
+	if not player:
+		return
+	var inv = player.get_node("Inventory")
 	inv.add_item(id, qty)
-	var research = Main.player.get_node_or_null("ResearchSystem")
+	var research = player.get_node_or_null("ResearchSystem")
 	if research:
 		research.add_experience(maxi(1, qty * 2))
+	_request_effect(&"collect", global_position)
 	item_collected.emit(id, qty)
+
+func _request_effect(effect_id: StringName, position: Vector3, vfx_id: StringName = &"") -> void:
+	if not is_inside_tree():
+		return
+	var effects := get_node_or_null("/root/Effects")
+	if not effects:
+		return
+	effects.play_world(effect_id, position)
+	if not vfx_id.is_empty():
+		effects.spawn_vfx(vfx_id, position)
