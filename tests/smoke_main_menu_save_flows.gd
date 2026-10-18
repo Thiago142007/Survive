@@ -18,7 +18,7 @@ func _run() -> void:
 	if not _expect(menu.get_node_or_null("Background") is TextureRect, "Title artwork must be a TextureRect"):
 		return
 	var background: TextureRect = menu.get_node("Background")
-	if not _expect(background.texture != null and background.texture.resource_path == "res://assets/ui/main_menu_sunset.png", "Supplied sunset image must be the intact title background"):
+	if not _expect(background.texture != null and background.texture.resource_path == "res://assets/ui/main_menu_sunset_background.png", "Title background must not contain baked menu buttons"):
 		return
 	for button_id in ["singleplayer", "multiplayer", "settings", "quit"]:
 		if not _expect(menu.has_method("get_title_button_rect") and menu.get_title_button_rect(button_id, Vector2(1280, 720)).has_area(), "Title hotspot %s must have a screen rectangle" % button_id):
@@ -26,6 +26,20 @@ func _run() -> void:
 		var rect_16_10: Rect2 = menu.get_title_button_rect(button_id, Vector2(1280, 800))
 		if not _expect(Rect2(Vector2.ZERO, Vector2(1280, 800)).encloses(rect_16_10), "Title hotspot %s must remain inside a 16:10 viewport" % button_id):
 			return
+		var button_name: String = {"singleplayer": "Singleplayer", "multiplayer": "Multiplayer", "settings": "Configs", "quit": "Quit"}[button_id]
+		var title_button := menu.get_node_or_null("TitleHotspots/%s" % button_name) as TextureButton
+		if not _expect(title_button != null and title_button.texture_normal != null and title_button.texture_normal.resource_path.ends_with("main_menu_button_%s.png" % button_id), "Title hotspot %s must render its own button sprite" % button_id):
+			return
+	var animated_button: TextureButton = menu.get_node("TitleHotspots/Singleplayer")
+	var rest_position: Vector2 = animated_button.position
+	menu._animate_title_button(animated_button, true)
+	await create_timer(0.22).timeout
+	if not _expect(animated_button.position.x > rest_position.x, "Hovering a title button must animate the button and its hitbox to the right"):
+		return
+	menu._animate_title_button(animated_button, false)
+	await create_timer(0.22).timeout
+	if not _expect(animated_button.position.is_equal_approx(rest_position), "The title button must return to its original hitbox position after hover"):
+		return
 	if not _expect(menu.get_node("TitleHotspots/Multiplayer").disabled, "Multiplayer must remain disabled"):
 		return
 	if not _expect(menu.get_node("TitleHotspots/Multiplayer").get_meta("hotspot_id", "") == "multiplayer" and menu.get_node("TitleHotspots/Multiplayer/ComingSoon").text == "EM BREVE", "Disabled multiplayer must still align over its image button and show the coming-soon label"):

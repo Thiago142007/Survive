@@ -1,7 +1,7 @@
 [gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
-[ext_resource type="Texture2D" path="res://assets/ui/main_menu_sunset.png" id="2_background"]
+[ext_resource type="Texture2D" path="res://assets/ui/main_menu_sunset_background.png" id="2_background"]
 
 [sub_resource type="StyleBoxFlat" id="Panel_dark"]
 bg_color = Color(0.105, 0.075, 0.07, 0.94)

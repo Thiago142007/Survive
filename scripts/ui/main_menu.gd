@@ -7,6 +7,14 @@ const HOTSPOT_PIXELS := {
 	"settings": Rect2(141.0, 510.0, 337.0, 66.0),
 	"quit": Rect2(141.0, 592.0, 337.0, 66.0)
 }
+const BUTTON_TEXTURES := {
+	"singleplayer": "res://assets/ui/main_menu_button_singleplayer.png",
+	"multiplayer": "res://assets/ui/main_menu_button_multiplayer.png",
+	"settings": "res://assets/ui/main_menu_button_settings.png",
+	"quit": "res://assets/ui/main_menu_button_quit.png"
+}
+const BUTTON_HOVER_OFFSET := 12.0
+const BUTTON_HOVER_DURATION := 0.16
 
 @onready var main_actions: VBoxContainer = $MainActions
 @onready var create_world_panel: Panel = $CreateWorldPanel
@@ -30,6 +38,7 @@ var _save_ids: Array[String] = []
 var _save_loadable: Array[bool] = []
 var _return_to_saves := true
 var _settings_panel: Control
+var _button_tweens: Dictionary = {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -86,16 +95,22 @@ func _create_title_hotspots() -> void:
 		["Quit", "quit", Callable(self, "_on_quit_pressed")]
 	]
 	for definition in definitions:
-		var button := Button.new()
+		var button := TextureButton.new()
 		button.name = String(definition[0])
-		button.text = ""
 		button.tooltip_text = String(definition[0])
 		button.focus_mode = Control.FOCUS_ALL
 		button.mouse_filter = Control.MOUSE_FILTER_STOP
-		button.add_theme_stylebox_override("normal", _hotspot_style(Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, 0.0)))
-		button.add_theme_stylebox_override("hover", _hotspot_style(Color(0.22, 0.12, 0.09, 0.22), Color(0.82, 0.55, 0.35, 0.35)))
-		button.add_theme_stylebox_override("focus", _hotspot_style(Color(0.0, 0.0, 0.0, 0.0), Color(1.0, 0.68, 0.39, 0.95)))
+		button.ignore_texture_size = true
+		button.stretch_mode = TextureButton.STRETCH_SCALE
+		button.texture_normal = load(BUTTON_TEXTURES[String(definition[1])])
+		button.texture_hover = button.texture_normal
+		button.texture_pressed = button.texture_normal
+		button.texture_focused = button.texture_normal
 		button.pressed.connect(definition[2])
+		button.mouse_entered.connect(_animate_title_button.bind(button, true))
+		button.mouse_exited.connect(_animate_title_button.bind(button, false))
+		button.focus_entered.connect(_animate_title_button.bind(button, true))
+		button.focus_exited.connect(_animate_title_button.bind(button, false))
 		button.set_meta("hotspot_id", String(definition[1]))
 		title_hotspots.add_child(button)
 		if String(definition[1]) == "multiplayer":
@@ -142,6 +157,7 @@ func _layout_title_hotspots() -> void:
 			var rect := get_title_button_rect(hotspot_id, viewport_size)
 			button.position = rect.position
 			button.size = rect.size
+			button.set_meta("rest_position", rect.position)
 			var badge := button.get_node_or_null("ComingSoon") as Label
 			if badge:
 				badge.position = Vector2(button.size.x * 0.77, 0.0)
@@ -153,6 +169,21 @@ func _layout_title_hotspots() -> void:
 	for index in range(enabled_buttons.size()):
 		enabled_buttons[index].focus_neighbor_top = enabled_buttons[(index - 1 + enabled_buttons.size()) % enabled_buttons.size()].get_path()
 		enabled_buttons[index].focus_neighbor_bottom = enabled_buttons[(index + 1) % enabled_buttons.size()].get_path()
+
+func _animate_title_button(button: TextureButton, hovered: bool) -> void:
+	if not is_instance_valid(button):
+		return
+	var previous_tween: Tween = _button_tweens.get(button)
+	if previous_tween and previous_tween.is_running():
+		previous_tween.kill()
+	var rest_position: Vector2 = button.get_meta("rest_position", button.position)
+	var scale_factor := button.size.x / 337.0
+	var target_position := rest_position + Vector2(BUTTON_HOVER_OFFSET * scale_factor, 0.0) if hovered else rest_position
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT if hovered else Tween.EASE_IN_OUT)
+	tween.tween_property(button, "position", target_position, BUTTON_HOVER_DURATION)
+	_button_tweens[button] = tween
 
 func _create_save_list_panel() -> void:
 	save_list_panel = PanelContainer.new()
