@@ -14,6 +14,7 @@ config/features=PackedStringArray("4.3", "Compatibility")
 [autoload]
 
 Main="*res://scripts/core/main.gd"
+Effects="*res://scripts/effects/effects_manager.gd"
 
 [display]
 
