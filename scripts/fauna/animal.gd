@@ -16,6 +16,7 @@ enum State { IDLE, WANDER, CHASE, FLEE, DEAD }
 @export var active_period: String = "all"
 
 var health: float = 45.0
+var persistent_id: String = ""
 var state: State = State.IDLE
 var is_tamed: bool = false
 var immobilized_time: float = 0.0
@@ -27,6 +28,52 @@ var _target: Node3D
 signal damaged(amount: float, remaining_health: float)
 signal died(animal: Animal)
 signal domesticated(animal: Animal)
+
+func get_save_state() -> Dictionary:
+	var position_value := global_position if is_inside_tree() else position
+	var rotation_value := global_rotation if is_inside_tree() else rotation
+	return {
+		"persistent_id": persistent_id,
+		"species": species,
+		"behavior": int(behavior),
+		"alive": state != State.DEAD and health > 0.0,
+		"health": health,
+		"max_health": max_health,
+		"is_tamed": is_tamed,
+		"position": [position_value.x, position_value.y, position_value.z],
+		"rotation": [rotation_value.x, rotation_value.y, rotation_value.z]
+	}
+
+func apply_save_state(saved: Dictionary) -> void:
+	if saved.has("persistent_id"):
+		persistent_id = String(saved["persistent_id"])
+	species = String(saved.get("species", species))
+	behavior = int(saved.get("behavior", int(behavior))) as Behavior
+	max_health = maxf(1.0, float(saved.get("max_health", max_health)))
+	health = clampf(float(saved.get("health", max_health)), 0.0, max_health)
+	is_tamed = bool(saved.get("is_tamed", false))
+	state = State.IDLE if bool(saved.get("alive", true)) and health > 0.0 else State.DEAD
+	_target = null
+	_attack_cooldown = 0.0
+	_wander_time = 0.0
+	_wander_direction = Vector3.ZERO
+	if saved.has("position"):
+		var saved_position: Array = saved["position"]
+		if saved_position.size() == 3:
+			var position_value := Vector3(float(saved_position[0]), float(saved_position[1]), float(saved_position[2]))
+			if is_inside_tree():
+				global_position = position_value
+			else:
+				position = position_value
+	if saved.has("rotation"):
+		var saved_rotation: Array = saved["rotation"]
+		if saved_rotation.size() == 3:
+			var rotation_value := Vector3(float(saved_rotation[0]), float(saved_rotation[1]), float(saved_rotation[2]))
+			if is_inside_tree():
+				global_rotation = rotation_value
+			else:
+				rotation = rotation_value
+	_configure_visuals()
 
 func _ready() -> void:
 	health = max_health

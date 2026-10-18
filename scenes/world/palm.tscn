@@ -1,0 +1,117 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/imported_model_variant.gd" id="1_variant"]
+
+[sub_resource type="CylinderMesh" id="PalmTrunkMesh"]
+top_radius = 0.12
+bottom_radius = 0.34
+height = 5.2
+radial_segments = 7
+
+[sub_resource type="SphereMesh" id="PalmLeafMesh"]
+radius = 0.22
+height = 3.4
+radial_segments = 7
+rings = 3
+
+[sub_resource type="SphereMesh" id="CoconutMesh"]
+radius = 0.22
+height = 0.35
+radial_segments = 7
+rings = 3
+
+[sub_resource type="StandardMaterial3D" id="PalmBark"]
+albedo_color = Color(0.31, 0.19, 0.1, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="PalmLeafDeep"]
+albedo_color = Color(0.08, 0.31, 0.19, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="PalmLeafLight"]
+albedo_color = Color(0.2, 0.48, 0.23, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="CoconutMaterial"]
+albedo_color = Color(0.42, 0.27, 0.12, 1)
+roughness = 1.0
+
+[node name="Palm" type="Node3D"]
+
+[node name="FallbackVisual" type="Node3D" parent="."]
+
+[node name="Trunk" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 2.6, 0)
+rotation = Vector3(0, 0, -0.08)
+mesh = SubResource("PalmTrunkMesh")
+material_override = SubResource("PalmBark")
+
+[node name="Frond01" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 0, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafDeep")
+
+[node name="Frond02" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 0.785, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafLight")
+
+[node name="Frond03" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 1.57, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafDeep")
+
+[node name="Frond04" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 2.356, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafLight")
+
+[node name="Frond05" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 3.14, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafDeep")
+
+[node name="Frond06" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 3.927, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafLight")
+
+[node name="Frond07" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 4.712, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafDeep")
+
+[node name="Frond08" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 5.0, 0)
+rotation = Vector3(0, 5.498, 1.0)
+mesh = SubResource("PalmLeafMesh")
+material_override = SubResource("PalmLeafLight")
+
+[node name="Coconut01" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0.15, 4.82, 0.12)
+mesh = SubResource("CoconutMesh")
+material_override = SubResource("CoconutMaterial")
+
+[node name="Coconut02" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(-0.16, 4.78, 0.08)
+mesh = SubResource("CoconutMesh")
+material_override = SubResource("CoconutMaterial")
+
+[node name="Coconut03" type="MeshInstance3D" parent="FallbackVisual"]
+position = Vector3(0, 4.76, -0.17)
+mesh = SubResource("CoconutMesh")
+material_override = SubResource("CoconutMaterial")
+
+[node name="AssetVisual" type="Node3D" parent="."]
+script = ExtResource("1_variant")
+source_path = "res://assets/models/palms/PalmTrees.fbx"
+variant_index = 1
+target_height = 5.5
+fallback_path = NodePath("../FallbackVisual")

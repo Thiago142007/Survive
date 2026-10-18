@@ -117,6 +117,36 @@ func place_piece(piece: Node3D) -> void:
 	placed_pieces.append(piece)
 	piece_placed.emit(piece)
 
+func get_save_state() -> Array[Dictionary]:
+	var saved_pieces: Array[Dictionary] = []
+	for piece in placed_pieces:
+		if is_instance_valid(piece) and piece.has_method("get_save_state"):
+			saved_pieces.append(piece.call("get_save_state"))
+	return saved_pieces
+
+func apply_save_state(saved_pieces: Array[Dictionary]) -> void:
+	_clear_ghost()
+	_build_mode = false
+	for piece in placed_pieces.duplicate():
+		if is_instance_valid(piece):
+			piece.queue_free()
+	placed_pieces.clear()
+	var world := get_tree().current_scene
+	if not world:
+		return
+	for state in saved_pieces:
+		var piece_id := String(state.get("piece_id", ""))
+		if not piece_scenes.has(piece_id):
+			continue
+		var packed := load(String(piece_scenes[piece_id])) as PackedScene
+		if not packed:
+			continue
+		var piece := packed.instantiate() as Node3D
+		world.add_child(piece)
+		if piece.has_method("apply_save_state"):
+			piece.call("apply_save_state", state)
+		placed_pieces.append(piece)
+
 func remove_piece(piece: Node3D) -> void:
 	if not piece or not placed_pieces.has(piece):
 		return

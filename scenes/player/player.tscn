@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://b1player001"]
+[gd_scene load_steps=9 format=3 uid="uid://b1player001"]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/inventory/inventory.gd" id="2_inv"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/building/building_system.gd" id="4_build"]
 [ext_resource type="Script" path="res://scripts/crafting/crafting_system.gd" id="5_crafting"]
 [ext_resource type="Script" path="res://scripts/progression/research_system.gd" id="6_research"]
+[ext_resource type="Script" path="res://scripts/player/character_presentation.gd" id="7_presentation"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.4
@@ -24,6 +25,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 [node name="Camera3D" type="Camera3D" parent="CameraPivot"]
 fov = 75.0
 current = true
+
+[node name="CharacterPresentation" type="Node3D" parent="."]
+script = ExtResource("7_presentation")
 
 [node name="Inventory" type="Node" parent="."]
 script = ExtResource("2_inv")

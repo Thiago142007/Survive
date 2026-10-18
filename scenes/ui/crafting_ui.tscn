@@ -30,7 +30,7 @@ theme_override_font_sizes/font_size = 28
 horizontal_alignment = 1
 
 [node name="Hint" type="Label" parent="Panel/Margin/VBox"]
-text = "Pressione C para fechar"
+text = "Pressione K para fechar"
 horizontal_alignment = 1
 
 [node name="RecipeList" type="VBoxContainer" parent="Panel/Margin/VBox"]

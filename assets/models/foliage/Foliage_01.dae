@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <asset>
+    <contributor>
+      <author>Blender User</author>
+      <authoring_tool>Blender 2.93.0 commit date:2021-06-02, commit time:11:21, hash:84da05a8b806</authoring_tool>
+    </contributor>
+    <created>2021-07-23T17:51:51</created>
+    <modified>2021-07-23T17:51:51</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects>
+    <effect id="Material_001-effect">
+      <profile_COMMON>
+        <newparam sid="PlantsDiffuse-surface">
+          <surface type="2D">
+            <init_from>PlantsDiffuse</init_from>
+          </surface>
+        </newparam>
+        <newparam sid="PlantsDiffuse-sampler">
+          <sampler2D>
+            <source>PlantsDiffuse-surface</source>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <diffuse>
+              <texture texture="PlantsDiffuse-sampler" texcoord="UVMap.001"/>
+            </diffuse>
+            <index_of_refraction>
+              <float sid="ior">1.45</float>
+            </index_of_refraction>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_images>
+    <image id="PlantsDiffuse" name="PlantsDiffuse">
+      <init_from>PlantsDiffuse.png</init_from>
+    </image>
+  </library_images>
+  <library_materials>
+    <material id="Material_001-material" name="Material.001">
+      <instance_effect url="#Material_001-effect"/>
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh" name="TexturesCom_NaturePlants0026_1_masked_S.003">
+      <mesh>
+        <source id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh-positions">
+          <float_array id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh-positions-array" count="48">0.3271484 1 0 -0.3271484 1 0 0.3271484 0 0 -0.3271484 0 0 -0.2313293 1 0.2313284 0.2313292 1 -0.2313286 -0.2313292 0 0.2313285 0.2313292 0 -0.2313285 0.2313286 1 0.231329 -0.2313287 1 -0.231329 0.2313287 0 0.231329 -0.2313287 0 -0.231329 -5.6045e-7 1 0.3271484 4.73027e-7 1 -0.3271484 -5.16738e-7 0 0.3271484 5.16738e-7 0 -0.3271484</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh-positions-array" count="16" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh-normals">
+          <float_array id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh-normals-array" count="21">0 0 1 -0.7071057 0 -0.7071079 -0.7071074 0 0.7071063 -1 0 -1.57952e-6 -0.7071056 0 -0.707108 -0.7071074 0 0.7071063 -1 0 -1.57952e-6</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh-normals-array" count="7" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh-map-0">
+          <float_array id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh-map-0-array" count="48">0.6285857 2.44149e-4 0.2536178 0.3752121 0.2536178 2.44238e-4 0.2536178 2.44238e-4 0.6285857 0.375212 0.2536178 0.3752121 0.6285857 2.44149e-4 0.2536178 0.3752121 0.2536178 2.44238e-4 0.6285857 2.44149e-4 0.2536178 0.3752121 0.2536178 2.44238e-4 0.6285857 2.44149e-4 0.6285857 0.375212 0.2536178 0.3752121 0.2536178 2.44238e-4 0.6285857 2.44149e-4 0.6285857 0.375212 0.6285857 2.44149e-4 0.6285857 0.375212 0.2536178 0.3752121 0.6285857 2.44149e-4 0.6285857 0.375212 0.2536178 0.3752121</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh-map-0-array" count="24" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="TexturesCom_NaturePlants0026_1_masked_S_003-mesh-vertices">
+          <input semantic="POSITION" source="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh-positions"/>
+        </vertices>
+        <triangles material="Material_001-material" count="8">
+          <input semantic="VERTEX" source="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh-map-0" offset="2" set="0"/>
+          <p>2 0 0 1 0 1 3 0 2 7 1 3 4 1 4 5 1 5 10 2 6 9 2 7 11 2 8 14 3 9 13 3 10 15 3 11 2 0 12 0 0 13 1 0 14 7 4 15 6 4 16 4 4 17 10 5 18 8 5 19 9 5 20 14 6 21 12 6 22 13 6 23</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="NicePng_grass-png-transparent_8738791_001-mesh" name="NicePng_grass-png-transparent_8738791.001">
+      <mesh>
+        <source id="NicePng_grass-png-transparent_8738791_001-mesh-positions">
+          <float_array id="NicePng_grass-png-transparent_8738791_001-mesh-positions-array" count="48">0.2724177 1 0 -0.2724177 1 0 0.2724177 0 0 -0.2724177 0 0 -2.65624e-7 1 0.2724177 1.78201e-7 1 -0.2724177 -2.21912e-7 0 0.2724177 2.21912e-7 0 -0.2724177 0.1926282 1 0.1926285 -0.1926282 1 -0.1926286 0.1926282 0 0.1926285 -0.1926282 0 -0.1926285 0.1926283 1 -0.1926285 -0.1926282 1 0.1926285 0.1926282 0 -0.1926285 -0.1926282 0 0.1926285</float_array>
+          <technique_common>
+            <accessor source="#NicePng_grass-png-transparent_8738791_001-mesh-positions-array" count="16" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="NicePng_grass-png-transparent_8738791_001-mesh-normals">
+          <float_array id="NicePng_grass-png-transparent_8738791_001-mesh-normals-array" count="21">0 0 1 -1 0 -8.14603e-7 -0.7071074 0 0.7071062 0.7071073 0 0.7071063 -1 0 -8.14603e-7 -0.7071074 0 0.7071062 0.7071074 0 0.7071062</float_array>
+          <technique_common>
+            <accessor source="#NicePng_grass-png-transparent_8738791_001-mesh-normals-array" count="7" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="NicePng_grass-png-transparent_8738791_001-mesh-map-0">
+          <float_array id="NicePng_grass-png-transparent_8738791_001-mesh-map-0-array" count="48">2.44196e-4 0.4638049 0.2528085 2.44141e-4 0.2528085 0.4638049 0.2528085 0.4638049 2.44141e-4 2.44171e-4 0.2528085 2.44141e-4 0.2528085 0.4638049 2.44141e-4 2.44171e-4 0.2528085 2.44141e-4 2.44196e-4 0.4638049 0.2528085 2.44141e-4 0.2528085 0.4638049 2.44196e-4 0.4638049 2.44141e-4 2.44171e-4 0.2528085 2.44141e-4 0.2528085 0.4638049 2.44196e-4 0.4638049 2.44141e-4 2.44171e-4 0.2528085 0.4638049 2.44196e-4 0.4638049 2.44141e-4 2.44171e-4 2.44196e-4 0.4638049 2.44141e-4 2.44171e-4 0.2528085 2.44141e-4</float_array>
+          <technique_common>
+            <accessor source="#NicePng_grass-png-transparent_8738791_001-mesh-map-0-array" count="24" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="NicePng_grass-png-transparent_8738791_001-mesh-vertices">
+          <input semantic="POSITION" source="#NicePng_grass-png-transparent_8738791_001-mesh-positions"/>
+        </vertices>
+        <triangles material="Material_001-material" count="8">
+          <input semantic="VERTEX" source="#NicePng_grass-png-transparent_8738791_001-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#NicePng_grass-png-transparent_8738791_001-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#NicePng_grass-png-transparent_8738791_001-mesh-map-0" offset="2" set="0"/>
+          <p>2 0 0 1 0 1 3 0 2 7 1 3 4 1 4 5 1 5 11 2 6 8 2 7 9 2 8 14 3 9 13 3 10 15 3 11 2 0 12 0 0 13 1 0 14 7 4 15 6 4 16 4 4 17 11 5 18 10 5 19 8 5 20 14 6 21 12 6 22 13 6 23</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh" name="TexturesCom_NaturePlants0049_1_masked_S.001">
+      <mesh>
+        <source id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh-positions">
+          <float_array id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh-positions-array" count="48">0.2158203 1 0 -0.2158203 1 0 0.2158203 0 0 -0.2158203 0 0 -2.19519e-7 1 0.2158203 1.32097e-7 1 -0.2158203 -1.75808e-7 0 0.2158203 1.75808e-7 0 -0.2158203 0.1526078 1 0.1526081 -0.1526079 1 -0.1526081 0.1526079 0 0.1526081 -0.1526079 0 -0.1526081 0.1526079 1 -0.1526081 -0.1526078 1 0.1526081 0.1526079 0 -0.1526081 -0.1526079 0 0.1526081</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh-positions-array" count="16" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh-normals">
+          <float_array id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh-normals-array" count="21">0 0 1 -1 0 -8.14603e-7 -0.7071074 0 0.7071062 0.7071074 0 0.7071063 -1 0 -8.14603e-7 -0.7071074 0 0.7071062 0.7071074 0 0.7071063</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh-normals-array" count="7" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh-map-0">
+          <float_array id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh-map-0-array" count="48">0.9606927 0.9997559 0.6561361 0.6951995 0.9606926 0.6951995 0.9606927 0.9997559 0.6561361 0.6951995 0.9606926 0.6951995 0.9606926 0.6951995 0.6561362 0.9997559 0.6561361 0.6951995 0.9606927 0.9997559 0.6561361 0.6951995 0.9606926 0.6951995 0.9606927 0.9997559 0.6561362 0.9997559 0.6561361 0.6951995 0.9606927 0.9997559 0.6561362 0.9997559 0.6561361 0.6951995 0.9606926 0.6951995 0.9606927 0.9997559 0.6561362 0.9997559 0.9606927 0.9997559 0.6561362 0.9997559 0.6561361 0.6951995</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh-map-0-array" count="24" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="TexturesCom_NaturePlants0049_1_masked_S_001-mesh-vertices">
+          <input semantic="POSITION" source="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh-positions"/>
+        </vertices>
+        <triangles material="Material_001-material" count="8">
+          <input semantic="VERTEX" source="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh-map-0" offset="2" set="0"/>
+          <p>2 0 0 1 0 1 3 0 2 6 1 3 5 1 4 7 1 5 11 2 6 8 2 7 9 2 8 14 3 9 13 3 10 15 3 11 2 0 12 0 0 13 1 0 14 6 4 15 4 4 16 5 4 17 11 5 18 10 5 19 8 5 20 14 6 21 12 6 22 13 6 23</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="TexturesCom_NaturePlants0033_9_M-mesh" name="TexturesCom_NaturePlants0033_9_M">
+      <mesh>
+        <source id="TexturesCom_NaturePlants0033_9_M-mesh-positions">
+          <float_array id="TexturesCom_NaturePlants0033_9_M-mesh-positions-array" count="48">0.31375 1 0 -0.31375 1 0 0.31375 0 0 -0.31375 0 0 -2.1187e-7 1 -0.31375 2.99293e-7 1 0.31375 -2.55582e-7 0 -0.31375 2.55582e-7 0 0.31375 0.2218548 1 -0.2218548 -0.2218547 1 0.2218547 0.2218547 0 -0.2218547 -0.2218547 0 0.2218547 -0.2218551 1 -0.2218545 0.2218551 1 0.2218543 -0.2218551 0 -0.2218543 0.2218551 0 0.2218543</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0033_9_M-mesh-positions-array" count="16" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0033_9_M-mesh-normals">
+          <float_array id="TexturesCom_NaturePlants0033_9_M-mesh-normals-array" count="18">0 0 1 1 0 -8.14603e-7 0.7071068 0 0.7071068 0.7071056 0 -0.7071079 1 0 -8.14603e-7 0.7071068 0 0.7071068</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0033_9_M-mesh-normals-array" count="6" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0033_9_M-mesh-map-0">
+          <float_array id="TexturesCom_NaturePlants0033_9_M-mesh-map-0-array" count="48">0.6208271 0.3760216 0.2536177 0.7432307 0.2536178 0.3760215 0.6208271 0.3760216 0.2536177 0.7432307 0.2536178 0.3760215 0.6208271 0.3760216 0.2536177 0.7432307 0.2536178 0.3760215 0.6208271 0.3760216 0.2536177 0.7432307 0.2536178 0.3760215 0.6208271 0.3760216 0.620827 0.7432307 0.2536177 0.7432307 0.6208271 0.3760216 0.620827 0.7432307 0.2536177 0.7432307 0.6208271 0.3760216 0.620827 0.7432307 0.2536177 0.7432307 0.6208271 0.3760216 0.620827 0.7432307 0.2536177 0.7432307</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0033_9_M-mesh-map-0-array" count="24" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="TexturesCom_NaturePlants0033_9_M-mesh-vertices">
+          <input semantic="POSITION" source="#TexturesCom_NaturePlants0033_9_M-mesh-positions"/>
+        </vertices>
+        <triangles material="Material_001-material" count="8">
+          <input semantic="VERTEX" source="#TexturesCom_NaturePlants0033_9_M-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#TexturesCom_NaturePlants0033_9_M-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#TexturesCom_NaturePlants0033_9_M-mesh-map-0" offset="2" set="0"/>
+          <p>2 0 0 1 0 1 3 0 2 6 1 3 5 1 4 7 1 5 10 2 6 9 2 7 11 2 8 14 3 9 13 3 10 15 3 11 2 0 12 0 0 13 1 0 14 6 4 15 4 4 16 5 4 17 10 5 18 8 5 19 9 5 20 14 3 21 12 3 22 13 3 23</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="TexturesCom_NaturePlants0072_1_masked_S-mesh" name="TexturesCom_NaturePlants0072_1_masked_S">
+      <mesh>
+        <source id="TexturesCom_NaturePlants0072_1_masked_S-mesh-positions">
+          <float_array id="TexturesCom_NaturePlants0072_1_masked_S-mesh-positions-array" count="48">0.2358398 1 0 -0.2358398 1 0 0.2358398 0 0 -0.2358398 0 0 -1.48405e-7 1 -0.2358399 2.35827e-7 1 0.2358398 -1.92116e-7 0 -0.2358398 1.92116e-7 0 0.2358398 0.166764 1 -0.1667639 -0.1667639 1 0.1667639 0.1667639 0 -0.1667639 -0.1667639 0 0.1667639 -0.1667641 1 -0.1667637 0.1667642 1 0.1667636 -0.1667642 0 -0.1667637 0.1667642 0 0.1667637</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0072_1_masked_S-mesh-positions-array" count="16" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0072_1_masked_S-mesh-normals">
+          <float_array id="TexturesCom_NaturePlants0072_1_masked_S-mesh-normals-array" count="21">0 0 1 1 0 -8.14603e-7 0.7071068 0 0.7071068 0.7071056 0 -0.707108 1 0 -8.14603e-7 0.7071068 0 0.7071068 0.7071057 0 -0.7071079</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0072_1_masked_S-mesh-normals-array" count="7" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0072_1_masked_S-mesh-map-0">
+          <float_array id="TexturesCom_NaturePlants0072_1_masked_S-mesh-map-0-array" count="48">0.6216365 0.6943901 0.940005 0.3760213 0.940005 0.69439 0.6216365 0.6943901 0.940005 0.3760213 0.940005 0.69439 0.6216365 0.6943901 0.940005 0.3760213 0.940005 0.69439 0.6216365 0.6943901 0.940005 0.3760213 0.940005 0.69439 0.6216365 0.6943901 0.6216365 0.3760215 0.940005 0.3760213 0.6216365 0.6943901 0.6216365 0.3760215 0.940005 0.3760213 0.6216365 0.6943901 0.6216365 0.3760215 0.940005 0.3760213 0.6216365 0.6943901 0.6216365 0.3760215 0.940005 0.3760213</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0072_1_masked_S-mesh-map-0-array" count="24" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="TexturesCom_NaturePlants0072_1_masked_S-mesh-vertices">
+          <input semantic="POSITION" source="#TexturesCom_NaturePlants0072_1_masked_S-mesh-positions"/>
+        </vertices>
+        <triangles material="Material_001-material" count="8">
+          <input semantic="VERTEX" source="#TexturesCom_NaturePlants0072_1_masked_S-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#TexturesCom_NaturePlants0072_1_masked_S-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#TexturesCom_NaturePlants0072_1_masked_S-mesh-map-0" offset="2" set="0"/>
+          <p>2 0 0 1 0 1 3 0 2 6 1 3 5 1 4 7 1 5 10 2 6 9 2 7 11 2 8 14 3 9 13 3 10 15 3 11 2 0 12 0 0 13 1 0 14 6 4 15 4 4 16 5 4 17 10 5 18 8 5 19 9 5 20 14 6 21 12 6 22 13 6 23</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="TexturesCom_NaturePlants0032_1_masked_S-mesh" name="TexturesCom_NaturePlants0032_1_masked_S">
+      <mesh>
+        <source id="TexturesCom_NaturePlants0032_1_masked_S-mesh-positions">
+          <float_array id="TexturesCom_NaturePlants0032_1_masked_S-mesh-positions-array" count="48">0.2333984 1 0 -0.2333984 1 0 0.2333984 0 0 -0.2333984 0 0 -1.46416e-7 1 -0.2333984 2.33839e-7 1 0.2333984 -1.90127e-7 0 -0.2333984 1.90127e-7 0 0.2333984 0.1650376 1 -0.1650376 -0.1650376 1 0.1650376 0.1650376 0 -0.1650376 -0.1650376 0 0.1650376 -0.1650378 1 -0.1650374 0.1650379 1 0.1650372 -0.1650379 0 -0.1650373 0.1650379 0 0.1650373</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0032_1_masked_S-mesh-positions-array" count="16" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0032_1_masked_S-mesh-normals">
+          <float_array id="TexturesCom_NaturePlants0032_1_masked_S-mesh-normals-array" count="21">0 0 1 1 0 -8.14603e-7 0.7071068 0 0.7071068 0.7071056 0 -0.707108 1 0 -8.14603e-7 0.7071068 0 0.7071068 0.7071057 0 -0.7071079</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0032_1_masked_S-mesh-normals-array" count="7" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="TexturesCom_NaturePlants0032_1_masked_S-mesh-map-0">
+          <float_array id="TexturesCom_NaturePlants0032_1_masked_S-mesh-map-0-array" count="48">0.9461116 0.3169608 0.6293951 2.44149e-4 0.9461116 2.44299e-4 0.9461116 0.3169608 0.6293951 2.44149e-4 0.9461116 2.44299e-4 0.9461116 0.3169608 0.6293951 2.44149e-4 0.9461116 2.44299e-4 0.9461116 0.3169608 0.6293951 2.44149e-4 0.9461116 2.44299e-4 0.9461116 0.3169608 0.6293951 0.3169606 0.6293951 2.44149e-4 0.9461116 0.3169608 0.6293951 0.3169606 0.6293951 2.44149e-4 0.9461116 0.3169608 0.6293951 0.3169606 0.6293951 2.44149e-4 0.9461116 0.3169608 0.6293951 0.3169606 0.6293951 2.44149e-4</float_array>
+          <technique_common>
+            <accessor source="#TexturesCom_NaturePlants0032_1_masked_S-mesh-map-0-array" count="24" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="TexturesCom_NaturePlants0032_1_masked_S-mesh-vertices">
+          <input semantic="POSITION" source="#TexturesCom_NaturePlants0032_1_masked_S-mesh-positions"/>
+        </vertices>
+        <triangles material="Material_001-material" count="8">
+          <input semantic="VERTEX" source="#TexturesCom_NaturePlants0032_1_masked_S-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#TexturesCom_NaturePlants0032_1_masked_S-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#TexturesCom_NaturePlants0032_1_masked_S-mesh-map-0" offset="2" set="0"/>
+          <p>2 0 0 1 0 1 3 0 2 6 1 3 5 1 4 7 1 5 10 2 6 9 2 7 11 2 8 14 3 9 13 3 10 15 3 11 2 0 12 0 0 13 1 0 14 6 4 15 4 4 16 5 4 17 10 5 18 8 5 19 9 5 20 14 6 21 12 6 22 13 6 23</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="TexturesCom_NaturePlants0026_1_masked_S_003" name="TexturesCom_NaturePlants0026_1_masked_S.003" type="NODE">
+        <matrix sid="transform">0.4350303 3.93584e-8 0.9004158 0.5 0.9004158 -1.90158e-8 -0.4350303 0 0 1 -4.37114e-8 0 0 0 0 1</matrix>
+        <instance_geometry url="#TexturesCom_NaturePlants0026_1_masked_S_003-mesh" name="TexturesCom_NaturePlants0026_1_masked_S.003">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Material_001-material" target="#Material_001-material">
+                <bind_vertex_input semantic="UVMap.001" input_semantic="TEXCOORD" input_set="0"/>
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="NicePng_grass-png-transparent_8738791_001" name="NicePng_grass-png-transparent_8738791.001" type="NODE">
+        <matrix sid="transform">-0.770727 -2.78514e-8 -0.6371655 1 -0.6371655 3.36895e-8 0.770727 0 0 1 -4.37114e-8 0 0 0 0 1</matrix>
+        <instance_geometry url="#NicePng_grass-png-transparent_8738791_001-mesh" name="NicePng_grass-png-transparent_8738791.001">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Material_001-material" target="#Material_001-material">
+                <bind_vertex_input semantic="UVMap.001" input_semantic="TEXCOORD" input_set="0"/>
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="TexturesCom_NaturePlants0049_1_masked_S_001" name="TexturesCom_NaturePlants0049_1_masked_S.001" type="NODE">
+        <matrix sid="transform">0.9808235 -8.51926e-9 -0.194898 -1 -0.194898 -4.28732e-8 -0.9808235 0 0 1 -4.37114e-8 0 0 0 0 1</matrix>
+        <instance_geometry url="#TexturesCom_NaturePlants0049_1_masked_S_001-mesh" name="TexturesCom_NaturePlants0049_1_masked_S.001">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Material_001-material" target="#Material_001-material">
+                <bind_vertex_input semantic="UVMap.001" input_semantic="TEXCOORD" input_set="0"/>
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="TexturesCom_NaturePlants0033_9_M" name="TexturesCom_NaturePlants0033_9_M" type="NODE">
+        <matrix sid="transform">0.7341274 -2.96805e-8 -0.6790117 -0.5 -0.6790117 -3.20897e-8 -0.7341274 0 0 1 -4.37114e-8 0 0 0 0 1</matrix>
+        <instance_geometry url="#TexturesCom_NaturePlants0033_9_M-mesh" name="TexturesCom_NaturePlants0033_9_M">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Material_001-material" target="#Material_001-material">
+                <bind_vertex_input semantic="UVMap.001" input_semantic="TEXCOORD" input_set="0"/>
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="TexturesCom_NaturePlants0072_1_masked_S" name="TexturesCom_NaturePlants0072_1_masked_S" type="NODE">
+        <matrix sid="transform">0.9417021 -1.47066e-8 -0.3364479 1.5 -0.3364479 -4.11631e-8 -0.9417021 0 0 1 -4.37114e-8 0 0 0 0 1</matrix>
+        <instance_geometry url="#TexturesCom_NaturePlants0072_1_masked_S-mesh" name="TexturesCom_NaturePlants0072_1_masked_S">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Material_001-material" target="#Material_001-material">
+                <bind_vertex_input semantic="UVMap.001" input_semantic="TEXCOORD" input_set="0"/>
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="TexturesCom_NaturePlants0032_1_masked_S" name="TexturesCom_NaturePlants0032_1_masked_S" type="NODE">
+        <matrix sid="transform">0.9500635 -1.36404e-8 -0.3120566 0 -0.3120566 -4.15286e-8 -0.9500635 0 0 1 -4.37114e-8 0 0 0 0 1</matrix>
+        <instance_geometry url="#TexturesCom_NaturePlants0032_1_masked_S-mesh" name="TexturesCom_NaturePlants0032_1_masked_S">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Material_001-material" target="#Material_001-material">
+                <bind_vertex_input semantic="UVMap.001" input_semantic="TEXCOORD" input_set="0"/>
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>

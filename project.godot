@@ -14,6 +14,8 @@ config/features=PackedStringArray("4.3", "Compatibility")
 [autoload]
 
 Main="*res://scripts/core/main.gd"
+SaveManager="*res://scripts/core/save_manager.gd"
+SettingsManager="*res://scripts/core/settings_manager.gd"
 
 [display]
 
@@ -57,6 +59,11 @@ jump={
 }
 interact={
 "deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":67,"resource_local_to_scene":false,"resource_name":"","script":null)
+]
+}
+open_inventory={
+"deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":69,"resource_local_to_scene":false,"resource_name":"","script":null)
 ]
 }
@@ -92,7 +99,7 @@ sprint={
 }
 open_crafting={
 "deadzone": 0.5,
-"events": [Object(InputEventKey,"physical_keycode":67,"resource_local_to_scene":false,"resource_name":"","script":null)
+"events": [Object(InputEventKey,"physical_keycode":75,"resource_local_to_scene":false,"resource_name":"","script":null)
 ]
 }
 open_research={

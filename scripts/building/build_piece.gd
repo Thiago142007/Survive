@@ -47,3 +47,35 @@ func get_repair_cost() -> Dictionary:
 
 func repair() -> void:
 	current_health = minf(health, current_health + base_health * 0.25)
+
+func get_save_state() -> Dictionary:
+	return {
+		"piece_id": piece_id,
+		"material_type": material_type,
+		"position": [global_position.x, global_position.y, global_position.z],
+		"rotation": [rotation.x, rotation.y, rotation.z],
+		"scale": [scale.x, scale.y, scale.z],
+		"health": health,
+		"current_health": current_health,
+		"improvement_level": improvement_level,
+		"stress": stress,
+		"stress_limit": stress_limit
+	}
+
+func apply_save_state(state: Dictionary) -> void:
+	material_type = String(state.get("material_type", material_type))
+	improvement_level = clampi(int(state.get("improvement_level", 0)), 0, get_max_improvements())
+	base_health = maxf(1.0, base_health)
+	health = maxf(float(state.get("health", health)), base_health * float(improvement_level + 1))
+	current_health = maxf(0.0, float(state.get("current_health", health)))
+	stress = clampf(float(state.get("stress", 0.0)), 0.0, float(state.get("stress_limit", stress_limit)))
+	stress_limit = maxf(1.0, float(state.get("stress_limit", stress_limit)))
+	var saved_position: Variant = state.get("position", [])
+	var saved_rotation: Variant = state.get("rotation", [])
+	var saved_scale: Variant = state.get("scale", [])
+	if saved_position is Array and saved_position.size() >= 3:
+		global_position = Vector3(float(saved_position[0]), float(saved_position[1]), float(saved_position[2]))
+	if saved_rotation is Array and saved_rotation.size() >= 3:
+		rotation = Vector3(float(saved_rotation[0]), float(saved_rotation[1]), float(saved_rotation[2]))
+	if saved_scale is Array and saved_scale.size() >= 3:
+		scale = Vector3(float(saved_scale[0]), float(saved_scale[1]), float(saved_scale[2]))

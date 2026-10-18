@@ -13,7 +13,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		_try_interact()
 
-func _try_interact() -> void:
+func _try_interact() -> bool:
 	ray.force_raycast_update()
 	if ray.is_colliding():
 		var collider = ray.get_collider()
@@ -21,8 +21,15 @@ func _try_interact() -> void:
 			var hud = get_tree().current_scene.get_node_or_null("HUD")
 			if hud and hud.has_method("show_message"):
 				hud.show_message("Animal domesticado")
+			Main.player.emit_presentation_action(&"interact", StringName(Main.player.get_active_tool()))
+			return true
 		elif collider.has_method("harvest"):
-			collider.harvest(self, Main.player.get_active_tool())
+			var tool_id := StringName(Main.player.get_active_tool())
+			var harvested: bool = collider.harvest(self, String(tool_id))
+			if harvested:
+				Main.player.emit_presentation_action(&"harvest", tool_id)
+			return harvested
+	return false
 
 func register_resource(id: String, qty: int) -> void:
 	var inv = Main.player.get_node("Inventory")

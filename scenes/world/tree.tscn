@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://b1tree0001"]
+[gd_scene load_steps=8 format=3 uid="uid://b1tree0001"]
 
 [ext_resource type="Script" path="res://scripts/world/harvestable.gd" id="1_harvest"]
 
@@ -15,12 +15,20 @@ height = 3.0
 radius = 1.25
 height = 2.2
 
+[sub_resource type="SphereMesh" id="SphereMesh_canopy_small"]
+radius = 0.9
+height = 1.5
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial_tree"]
 albedo_color = Color(0.26, 0.16, 0.08, 1)
 shading_mode = 0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial_canopy"]
 albedo_color = Color(0.16, 0.3, 0.12, 1)
+shading_mode = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial_canopy_light"]
+albedo_color = Color(0.24, 0.42, 0.14, 1)
 shading_mode = 0
 
 [node name="Tree" type="StaticBody3D"]
@@ -33,10 +41,24 @@ preferred_tool = "stone_axe"
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 mesh = SubResource("CylinderMesh_trunk")
+material_override = SubResource("StandardMaterial_tree")
 
 [node name="Canopy" type="MeshInstance3D" parent="."]
 position = Vector3(0, 3.0, 0)
 mesh = SubResource("SphereMesh_canopy")
+material_override = SubResource("StandardMaterial_canopy")
+
+[node name="CanopySide" type="MeshInstance3D" parent="."]
+position = Vector3(0.75, 2.65, 0.25)
+rotation = Vector3(0, 0.35, 0)
+mesh = SubResource("SphereMesh_canopy_small")
+material_override = SubResource("StandardMaterial_canopy_light")
+
+[node name="CanopySide2" type="MeshInstance3D" parent="."]
+position = Vector3(-0.65, 2.8, -0.2)
+rotation = Vector3(0, -0.25, 0)
+mesh = SubResource("SphereMesh_canopy_small")
+material_override = SubResource("StandardMaterial_canopy")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)

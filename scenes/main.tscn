@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://b1main0001"]
+[gd_scene load_steps=10 format=3 uid="uid://b1main0001"]
 
 [ext_resource type="Script" path="res://scripts/core/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -7,13 +7,15 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/main_menu.tscn" id="5_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/crafting_ui.tscn" id="6_crafting"]
 [ext_resource type="PackedScene" path="res://scenes/ui/research_ui.tscn" id="7_research"]
+[ext_resource type="PackedScene" path="res://scenes/ui/inventory_ui.tscn" id="8_inventory_ui"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="9_pause_menu"]
 
 [sub_resource type="Environment" id="Environment_env"]
 background_mode = 1
-background_color = Color(0.34, 0.55, 0.73, 1)
+background_color = Color(0.38, 0.64, 0.82, 1)
 ambient_light_source = 3
-ambient_light_color = Color(0.62, 0.72, 0.82, 1)
-ambient_light_energy = 0.7
+ambient_light_color = Color(0.72, 0.8, 0.86, 1)
+ambient_light_energy = 0.85
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -22,6 +24,7 @@ script = ExtResource("1_main")
 transform = Transform3D(0.866, -0.25, -0.433, 0, 0.866, -0.5, 0.5, 0.433, 0.75, 10, 20, 10)
 light_energy = 1.0
 light_color = Color(1, 0.93, 0.82, 1)
+shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_env")
@@ -39,3 +42,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 [node name="CraftingUI" parent="." instance=ExtResource("6_crafting")]
 
 [node name="ResearchUI" parent="." instance=ExtResource("7_research")]
+
+[node name="InventoryUI" parent="." instance=ExtResource("8_inventory_ui")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("9_pause_menu")]

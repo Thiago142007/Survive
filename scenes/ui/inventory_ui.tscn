@@ -1,0 +1,84 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/inventory_ui.gd" id="1_inventory"]
+[ext_resource type="Script" path="res://scripts/ui/inventory_frame.gd" id="2_frame"]
+
+[node name="InventoryUI" type="CanvasLayer"]
+layer = 20
+script = ExtResource("1_inventory")
+
+[node name="Overlay" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+color = Color(0.06, 0.055, 0.052, 1)
+
+[node name="Reference" type="Control" parent="Overlay"]
+offset_right = 736.0
+offset_bottom = 460.0
+mouse_filter = 1
+
+[node name="Background" type="Control" parent="Overlay/Reference"]
+offset_right = 736.0
+offset_bottom = 460.0
+mouse_filter = 2
+script = ExtResource("2_frame")
+
+[node name="Slots" type="Control" parent="Overlay/Reference"]
+offset_right = 736.0
+offset_bottom = 460.0
+mouse_filter = 1
+
+[node name="EquipmentIcons" type="Control" parent="Overlay/Reference"]
+offset_right = 736.0
+offset_bottom = 460.0
+mouse_filter = 2
+
+[node name="ItemInfo" type="Label" parent="Overlay/Reference"]
+visible = false
+offset_left = 132.0
+offset_top = 398.0
+offset_right = 468.0
+offset_bottom = 422.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.83, 0.76, 0.68, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 15
+
+[node name="Pager" type="HBoxContainer" parent="Overlay/Reference"]
+visible = false
+offset_left = 487.0
+offset_top = 396.0
+offset_right = 604.0
+offset_bottom = 425.0
+theme_override_constants/separation = 5
+
+[node name="Previous" type="Button" parent="Overlay/Reference/Pager"]
+custom_minimum_size = Vector2(30, 27)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.74, 0.66, 1)
+theme_override_font_sizes/font_size = 20
+text = "‹"
+flat = true
+tooltip_text = "Página anterior"
+
+[node name="PageNumber" type="Label" parent="Overlay/Reference/Pager"]
+custom_minimum_size = Vector2(44, 27)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.76, 0.69, 0.62, 1)
+theme_override_font_sizes/font_size = 13
+text = "1/1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Next" type="Button" parent="Overlay/Reference/Pager"]
+custom_minimum_size = Vector2(30, 27)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.74, 0.66, 1)
+theme_override_font_sizes/font_size = 20
+text = "›"
+flat = true
+tooltip_text = "Próxima página"

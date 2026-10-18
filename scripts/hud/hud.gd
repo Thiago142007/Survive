@@ -37,3 +37,6 @@ func show_message(text: String, duration: float = 2.0) -> void:
 	message_label.visible = true
 	await get_tree().create_timer(duration).timeout
 	message_label.visible = false
+
+func set_inventory_open(is_open: bool) -> void:
+	crosshair.visible = not is_open

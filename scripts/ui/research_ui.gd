@@ -12,6 +12,8 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("open_research") and Main.game_started:
+		if _inventory_is_open():
+			return
 		panel.visible = not panel.visible
 		if panel.visible:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -19,6 +21,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			_refresh()
 		else:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func close() -> void:
+	panel.visible = false
+	if not _inventory_is_open():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func is_open() -> bool:
+	return panel.visible
+
+func _inventory_is_open() -> bool:
+	var inventory_ui := get_parent().get_node_or_null("InventoryUI")
+	return inventory_ui != null and inventory_ui.has_method("is_open") and inventory_ui.is_open()
 
 func _refresh() -> void:
 	for child in node_list.get_children():
