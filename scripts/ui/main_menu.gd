@@ -21,7 +21,12 @@ func _on_start_pressed() -> void:
 		parsed_seed = randi()
 	var difficulties := ["easy", "normal", "hard"]
 	var selected: String = String(difficulties[difficulty_option.selected])
-	Main.configure_world(name_input.text, description_input.text, parsed_seed, selected)
+	var main := get_node_or_null("/root/Main")
+	if not main:
+		_request_ui(&"ui_error")
+		return
+	main.configure_world(name_input.text, description_input.text, parsed_seed, selected)
+	_request_ui(&"ui_confirm")
 	visible = false
 	var hud = get_parent().get_node_or_null("HUD")
 	if hud:
@@ -30,4 +35,10 @@ func _on_start_pressed() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _on_quit_pressed() -> void:
+	_request_ui(&"ui_click")
 	get_tree().quit()
+
+func _request_ui(effect_id: StringName) -> void:
+	var effects := get_node_or_null("/root/Effects")
+	if effects:
+		effects.play_ui(effect_id)

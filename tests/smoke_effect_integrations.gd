@@ -124,6 +124,84 @@ func _run() -> void:
 	if not _require(respawn_positions.size() == 1 and player.health == player.max_health and player.hunger == player.max_hunger * 0.5 and player.thirst == player.max_thirst * 0.5, "Respawn feedback must not change reset values"):
 		return
 
+	effects.play_ui(&"ui_click")
+	var ui_players := effects.find_children("UISFX_*", "AudioStreamPlayer", false, false)
+	if not _require(ui_players.size() >= 1 and (ui_players[0] as AudioStreamPlayer).process_mode == Node.PROCESS_MODE_ALWAYS, "UI audio players must run while the tree is paused"):
+		return
+	effects.stop_ambience()
+	_requests.clear()
+	var ui_host := Node3D.new()
+	ui_host.name = "EffectIntegrationUIHost"
+	root.add_child(ui_host)
+	current_scene = ui_host
+	var menu := (load("res://scenes/ui/main_menu.tscn") as PackedScene).instantiate()
+	ui_host.add_child(menu)
+	await process_frame
+	menu.call("_on_start_pressed")
+	if not _require(_requested_all([&"ui_confirm", &"ocean", &"wind"]), "Creating a world must confirm and start ocean plus wind ambience"):
+		return
+	if not _require(effects.get_ambience_count() == 2 and _ambience_players_valid(effects), "World ambience must use exactly two looping players on the Ambience bus"):
+		return
+
+	var crafting_ui := (load("res://scenes/ui/crafting_ui.tscn") as PackedScene).instantiate()
+	ui_host.add_child(crafting_ui)
+	var research_ui := (load("res://scenes/ui/research_ui.tscn") as PackedScene).instantiate()
+	ui_host.add_child(research_ui)
+	await process_frame
+	_requests.clear()
+	crafting_ui.call("_toggle")
+	crafting_ui.call("_toggle")
+	research_ui.call("_toggle")
+	research_ui.call("_toggle")
+	if not _require(_request_count(&"ui_click") == 4, "Opening and closing crafting and research must request UI clicks"):
+		return
+
+	var player_inventory: Node = player.get_node("Inventory")
+	player_inventory.slots.clear()
+	crafting_ui.crafting_system = player.get_node("CraftingSystem")
+	_requests.clear()
+	crafting_ui.call("_craft_recipe", "stone_axe")
+	if not _require(_requested_all([&"ui_error"]), "Failed crafting must request UI error feedback"):
+		return
+	player_inventory.add_item("wood", 5)
+	player_inventory.add_item("stone", 3)
+	_requests.clear()
+	crafting_ui.call("_craft_recipe", "stone_axe")
+	if not _require(_requested_all([&"ui_confirm"]), "Successful crafting must request UI confirmation"):
+		return
+
+	var research_system: Node = player.get_node("ResearchSystem")
+	research_ui.research_system = research_system
+	research_system.research_points = 0
+	_requests.clear()
+	research_ui.call("_unlock", "agriculture")
+	if not _require(_requested_all([&"ui_error"]), "Failed research must request UI error feedback"):
+		return
+	research_system.research_points = 3
+	_requests.clear()
+	research_ui.call("_unlock", "agriculture")
+	if not _require(_requested_all([&"ui_confirm"]), "Successful research must request UI confirmation"):
+		return
+
+	var player_building := player.get_node("BuildingSystem") as BuildingSystem
+	if not _require(player_building.has_signal("status_message"), "Successful building status must use a non-error signal"):
+		return
+	main.call("_connect_building_signals")
+	_requests.clear()
+	player_building.emit_signal("status_message", "Construção reparada")
+	if not _require(_request_count(&"ui_error") == 0, "Successful building status must not request UI error feedback"):
+		return
+	_requests.clear()
+	player_building.invalid_placement.emit("Teste")
+	if not _require(_requested_all([&"ui_error"]), "Invalid placement must request UI error feedback"):
+		return
+	main.call("set_game_started", false)
+	await process_frame
+	if not _require(effects.get_ambience_count() == 0, "Leaving the started state must stop all ambience layers"):
+		return
+	current_scene = null
+	ui_host.queue_free()
+
 	var offline_animal := animal_scene.instantiate() as Animal
 	offline_animal.max_health = 40.0
 	root.add_child(offline_animal)
@@ -151,6 +229,24 @@ func _requested_all(effect_ids: Array[StringName]) -> bool:
 		requested_ids.append(request["id"])
 	for effect_id in effect_ids:
 		if not requested_ids.has(effect_id):
+			return false
+	return true
+
+func _request_count(effect_id: StringName) -> int:
+	var count := 0
+	for request in _requests:
+		if request["id"] == effect_id:
+			count += 1
+	return count
+
+func _ambience_players_valid(effects: Node) -> bool:
+	var ambience_players := effects.find_children("Ambience_*", "AudioStreamPlayer", false, false)
+	if ambience_players.size() != 2:
+		return false
+	for node in ambience_players:
+		var player := node as AudioStreamPlayer
+		var stream := player.stream as AudioStreamOggVorbis
+		if player.bus != &"Ambience" or not stream or not stream.loop:
 			return false
 	return true
 

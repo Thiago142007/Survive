@@ -11,14 +11,20 @@ func _ready() -> void:
 	panel.visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("open_research") and Main.game_started:
-		panel.visible = not panel.visible
-		if panel.visible:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-			research_system = Main.player.get_node_or_null("ResearchSystem")
-			_refresh()
-		else:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var main := get_node_or_null("/root/Main")
+	if event.is_action_pressed("open_research") and main and main.game_started:
+		_toggle()
+
+func _toggle() -> void:
+	_request_ui(&"ui_click")
+	panel.visible = not panel.visible
+	if panel.visible:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		var main := get_node_or_null("/root/Main")
+		research_system = main.player.get_node_or_null("ResearchSystem") if main and main.player else null
+		_refresh()
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _refresh() -> void:
 	for child in node_list.get_children():
@@ -39,6 +45,13 @@ func _refresh() -> void:
 func _unlock(node_id: String) -> void:
 	if research_system and research_system.unlock(node_id):
 		status_label.text = "Pesquisa desbloqueada"
+		_request_ui(&"ui_confirm")
 		_refresh()
 	else:
 		status_label.text = "Research Points insuficientes"
+		_request_ui(&"ui_error")
+
+func _request_ui(effect_id: StringName) -> void:
+	var effects := get_node_or_null("/root/Effects")
+	if effects:
+		effects.play_ui(effect_id)

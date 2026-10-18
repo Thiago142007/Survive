@@ -21,6 +21,7 @@ var _stress_timer: float = 0.0
 signal piece_placed(piece: Node3D)
 signal piece_removed(piece: Node3D)
 signal invalid_placement(reason: String)
+signal status_message(message: String)
 signal selection_changed(piece_name: String)
 
 func snap_to_grid(pos: Vector3) -> Vector3:
@@ -60,7 +61,7 @@ func _cycle_piece() -> void:
 	_clear_ghost()
 	_spawn_ghost()
 	selection_changed.emit(_piece_display_name(selected_piece_id))
-	invalid_placement.emit("Peça selecionada: %s" % _piece_display_name(selected_piece_id))
+	status_message.emit("Peça selecionada: %s" % _piece_display_name(selected_piece_id))
 
 func _spawn_ghost() -> void:
 	if ghost_piece:
@@ -253,7 +254,7 @@ func upgrade_piece(target: Node3D) -> bool:
 		return false
 	_deduct_cost(cost)
 	target.upgrade()
-	invalid_placement.emit("Construção melhorada")
+	status_message.emit("Construção melhorada")
 	_request_effect(&"build_upgrade", target.global_position if target.is_inside_tree() else target.position, &"stone_sparks")
 	return true
 
@@ -270,7 +271,7 @@ func repair_piece(target: Node3D) -> bool:
 		return false
 	_deduct_cost(cost)
 	target.repair()
-	invalid_placement.emit("Construção reparada")
+	status_message.emit("Construção reparada")
 	_request_effect(&"build_repair", target.global_position if target.is_inside_tree() else target.position, &"dust")
 	return true
 

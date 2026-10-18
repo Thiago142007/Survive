@@ -10,14 +10,17 @@ func _ready() -> void:
 	panel.visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("open_crafting") and Main.game_started:
+	var main := get_node_or_null("/root/Main")
+	if event.is_action_pressed("open_crafting") and main and main.game_started:
 		_toggle()
 
 func _toggle() -> void:
+	_request_ui(&"ui_click")
 	panel.visible = not panel.visible
 	if panel.visible:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		crafting_system = Main.player.get_node_or_null("CraftingSystem")
+		var main := get_node_or_null("/root/Main")
+		crafting_system = main.player.get_node_or_null("CraftingSystem") if main and main.player else null
 		_refresh()
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -48,6 +51,13 @@ func _display_name(resource_id: String) -> String:
 func _craft_recipe(recipe_id: String) -> void:
 	if crafting_system and crafting_system.craft(recipe_id):
 		status_label.text = "Item criado"
+		_request_ui(&"ui_confirm")
 		_refresh()
 	else:
 		status_label.text = "Recursos insuficientes"
+		_request_ui(&"ui_error")
+
+func _request_ui(effect_id: StringName) -> void:
+	var effects := get_node_or_null("/root/Effects")
+	if effects:
+		effects.play_ui(effect_id)
