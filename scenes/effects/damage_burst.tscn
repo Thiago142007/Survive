@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/burst_effect.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/vfx/textures/smoke_03.png" id="2_texture"]
+
+[sub_resource type="StandardMaterial3D" id="Material_damage"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 1
+albedo_texture = ExtResource("2_texture")
+
+[sub_resource type="QuadMesh" id="Mesh_damage"]
+material = SubResource("Material_damage")
+size = Vector2(0.32, 0.32)
+
+[node name="DamageBurst" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Particles" type="CPUParticles3D" parent="."]
+cast_shadow = 0
+emitting = false
+amount = 8
+lifetime = 0.3
+one_shot = true
+explosiveness = 1.0
+randomness = 0.3
+visibility_aabb = AABB(-2, -2, -2, 4, 4, 4)
+mesh = SubResource("Mesh_damage")
+direction = Vector3(0, 1, 0)
+spread = 85.0
+gravity = Vector3(0, -1, 0)
+initial_velocity_min = 1.4
+initial_velocity_max = 3.0
+scale_amount_min = 0.2
+scale_amount_max = 0.48
+color = Color(0.65, 0.09, 0.06, 0.85)

@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/burst_effect.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/vfx/textures/spark_05.png" id="2_texture"]
+
+[sub_resource type="StandardMaterial3D" id="Material_stone"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 1
+albedo_texture = ExtResource("2_texture")
+
+[sub_resource type="QuadMesh" id="Mesh_stone"]
+material = SubResource("Material_stone")
+size = Vector2(0.2, 0.34)
+
+[node name="StoneSparks" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Particles" type="CPUParticles3D" parent="."]
+cast_shadow = 0
+emitting = false
+amount = 8
+lifetime = 0.35
+one_shot = true
+explosiveness = 1.0
+randomness = 0.25
+visibility_aabb = AABB(-3, -1, -3, 6, 5, 6)
+mesh = SubResource("Mesh_stone")
+direction = Vector3(0, 1, 0)
+spread = 72.0
+gravity = Vector3(0, -8, 0)
+initial_velocity_min = 2.8
+initial_velocity_max = 5.4
+scale_amount_min = 0.15
+scale_amount_max = 0.35
+color = Color(0.9, 0.78, 0.52, 1)

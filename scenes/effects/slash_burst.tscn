@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/burst_effect.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/vfx/textures/slash_03.png" id="2_texture"]
+
+[sub_resource type="StandardMaterial3D" id="Material_slash"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 1
+albedo_texture = ExtResource("2_texture")
+
+[sub_resource type="QuadMesh" id="Mesh_slash"]
+material = SubResource("Material_slash")
+size = Vector2(0.95, 0.52)
+
+[node name="SlashBurst" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Particles" type="CPUParticles3D" parent="."]
+cast_shadow = 0
+emitting = false
+amount = 4
+lifetime = 0.25
+one_shot = true
+explosiveness = 1.0
+randomness = 0.15
+visibility_aabb = AABB(-2, -2, -2, 4, 4, 4)
+mesh = SubResource("Mesh_slash")
+direction = Vector3(0, 0.25, -1)
+spread = 18.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 0.35
+initial_velocity_max = 0.75
+scale_amount_min = 0.7
+scale_amount_max = 1.0
+color = Color(0.88, 0.94, 1, 0.9)

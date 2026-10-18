@@ -56,9 +56,18 @@ var _catalog: Dictionary = {
 	&"wind": [preload("res://assets/audio/ambience/wind_loop.ogg")],
 }
 
+var _vfx_catalog: Dictionary = {
+	&"dust": preload("res://scenes/effects/dust_burst.tscn"),
+	&"wood_splinters": preload("res://scenes/effects/wood_splinters.tscn"),
+	&"stone_sparks": preload("res://scenes/effects/stone_sparks.tscn"),
+	&"damage": preload("res://scenes/effects/damage_burst.tscn"),
+	&"slash": preload("res://scenes/effects/slash_burst.tscn"),
+}
+
 var _world_players: Array[AudioStreamPlayer3D] = []
 var _ui_players: Array[AudioStreamPlayer] = []
 var _ambience_players: Dictionary = {}
+var _vfx_pool: Array[Node3D] = []
 var _active_vfx: Array[Node3D] = []
 var _world_recycle_cursor := 0
 var _ui_recycle_cursor := 0
@@ -130,9 +139,39 @@ func stop_ambience(effect_id: StringName = &"") -> void:
 	player.queue_free()
 	_ambience_players.erase(effect_id)
 
-func spawn_vfx(vfx_id: StringName, _position: Vector3) -> bool:
-	push_warning("Unknown VFX: %s" % vfx_id)
-	return false
+func spawn_vfx(vfx_id: StringName, position: Vector3) -> bool:
+	if not _vfx_catalog.has(vfx_id):
+		push_warning("Unknown VFX: %s" % vfx_id)
+		return false
+	_prune_vfx_pool()
+	var host: Node = get_tree().current_scene
+	if not host:
+		host = get_tree().root
+	if not host:
+		return false
+	var effect: Node3D = null
+	for pooled in _vfx_pool:
+		if pooled.get_meta(&"vfx_id", &"") == vfx_id and not bool(pooled.get("active")):
+			effect = pooled
+			break
+	if not effect:
+		if _vfx_pool.size() >= MAX_VFX:
+			var oldest := _active_vfx.pop_front() as Node3D
+			_vfx_pool.erase(oldest)
+			if is_instance_valid(oldest):
+				oldest.free()
+		effect = (_vfx_catalog[vfx_id] as PackedScene).instantiate() as Node3D
+		effect.set_meta(&"vfx_id", vfx_id)
+		effect.burst_finished.connect(_on_burst_finished)
+		host.add_child(effect)
+		_vfx_pool.append(effect)
+	elif effect.get_parent() != host:
+		effect.reparent(host)
+	_active_vfx.erase(effect)
+	_active_vfx.append(effect)
+	effect.restart_at(position)
+	effect_requested.emit(vfx_id, position, true)
+	return true
 
 func get_world_pool_size() -> int:
 	return _world_players.size()
@@ -144,7 +183,19 @@ func get_ambience_count() -> int:
 	return _ambience_players.size()
 
 func get_active_vfx_count() -> int:
+	_prune_vfx_pool()
 	return _active_vfx.size()
+
+func _on_burst_finished(effect: Node3D) -> void:
+	_active_vfx.erase(effect)
+
+func _prune_vfx_pool() -> void:
+	for index in range(_vfx_pool.size() - 1, -1, -1):
+		if not is_instance_valid(_vfx_pool[index]):
+			_vfx_pool.remove_at(index)
+	for index in range(_active_vfx.size() - 1, -1, -1):
+		if not is_instance_valid(_active_vfx[index]) or not bool(_active_vfx[index].get("active")):
+			_active_vfx.remove_at(index)
 
 func _acquire_world_player() -> AudioStreamPlayer3D:
 	for player in _world_players:
