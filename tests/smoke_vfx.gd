@@ -49,6 +49,11 @@ func _run() -> void:
 	await create_timer(1.0).timeout
 	if not _require(effects.get_active_vfx_count() == 0, "Completed VFX must return to the inactive pool"):
 		return
+	if not _require(effects.spawn_vfx(&"slash", Vector3.ZERO), "A different VFX type must spawn after the pool becomes inactive"):
+		return
+	if not _require(effects.get_vfx_pool_size() <= 24, "Inactive VFX of another type must be recycled instead of growing the pool"):
+		return
+	await create_timer(0.3).timeout
 	print("VFX smoke test: PASS")
 	quit()
 

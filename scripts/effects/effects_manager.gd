@@ -67,6 +67,10 @@ var _vfx_catalog: Dictionary = {
 var _world_players: Array[AudioStreamPlayer3D] = []
 var _ui_players: Array[AudioStreamPlayer] = []
 var _ambience_players: Dictionary = {}
+var _ambience_volume_db: Dictionary = {
+	&"ocean": -14.0,
+	&"wind": -18.0,
+}
 var _vfx_pool: Array[Node3D] = []
 var _active_vfx: Array[Node3D] = []
 var _world_recycle_cursor := 0
@@ -115,6 +119,7 @@ func start_ambience(effect_id: StringName) -> bool:
 	var player := AudioStreamPlayer.new()
 	player.name = "Ambience_%s" % effect_id
 	player.bus = &"Ambience"
+	player.volume_db = float(_ambience_volume_db.get(effect_id, -16.0))
 	player.process_mode = Node.PROCESS_MODE_ALWAYS
 	var stream := _choose_stream(effect_id).duplicate() as AudioStreamOggVorbis
 	stream.loop = true
@@ -156,10 +161,19 @@ func spawn_vfx(vfx_id: StringName, position: Vector3) -> bool:
 			break
 	if not effect:
 		if _vfx_pool.size() >= MAX_VFX:
-			var oldest := _active_vfx.pop_front() as Node3D
-			_vfx_pool.erase(oldest)
-			if is_instance_valid(oldest):
-				oldest.free()
+			var recycled: Node3D = null
+			if not _active_vfx.is_empty():
+				recycled = _active_vfx.pop_front() as Node3D
+			else:
+				for pooled in _vfx_pool:
+					if not bool(pooled.get("active")):
+						recycled = pooled
+						break
+			if not recycled:
+				return false
+			_vfx_pool.erase(recycled)
+			if is_instance_valid(recycled):
+				recycled.free()
 		effect = (_vfx_catalog[vfx_id] as PackedScene).instantiate() as Node3D
 		effect.set_meta(&"vfx_id", vfx_id)
 		effect.burst_finished.connect(_on_burst_finished)
@@ -185,6 +199,10 @@ func get_ambience_count() -> int:
 func get_active_vfx_count() -> int:
 	_prune_vfx_pool()
 	return _active_vfx.size()
+
+func get_vfx_pool_size() -> int:
+	_prune_vfx_pool()
+	return _vfx_pool.size()
 
 func _on_burst_finished(effect: Node3D) -> void:
 	_active_vfx.erase(effect)

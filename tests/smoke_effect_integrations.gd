@@ -246,7 +246,7 @@ func _ambience_players_valid(effects: Node) -> bool:
 	for node in ambience_players:
 		var player := node as AudioStreamPlayer
 		var stream := player.stream as AudioStreamOggVorbis
-		if player.bus != &"Ambience" or not stream or not stream.loop:
+		if player.bus != &"Ambience" or player.volume_db > -10.0 or not stream or not stream.loop:
 			return false
 	return true
 
