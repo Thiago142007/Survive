@@ -45,6 +45,7 @@ var _pending_chunks: Array[Vector2i] = []
 var _last_stream_focus := Vector3.INF
 var _last_lod_focus := Vector3.INF
 var _prepared_terrain_arrays: Dictionary = {}
+var _prepared_collision_faces: Dictionary = {}
 var _prepared_detail_transforms: Dictionary = {}
 var _wanted_chunks: Dictionary = {}
 var _build_queue: Array[Vector2i] = []
@@ -164,6 +165,7 @@ func _cancel_pending_builds() -> void:
 	_build_queue.clear()
 	_wanted_chunks.clear()
 	_prepared_terrain_arrays.clear()
+	_prepared_collision_faces.clear()
 	_prepared_detail_transforms.clear()
 
 func _load_chunk(chunk_key: Vector2i) -> void:
@@ -174,6 +176,9 @@ func _load_chunk(chunk_key: Vector2i) -> void:
 func _unload_chunk(chunk_key: Vector2i) -> void:
 	_pending_attachment_chunks.erase(chunk_key)
 	_attachment_stage.erase(chunk_key)
+	for descriptor in island_descriptors:
+		if descriptor["chunk"] == chunk_key:
+			_prepared_collision_faces.erase(String(descriptor["id"]))
 	super._unload_chunk(chunk_key)
 
 func _request_chunk(chunk_key: Vector2i) -> void:
@@ -240,8 +245,10 @@ func _poll_background_build() -> void:
 			var attach_started := Time.get_ticks_msec()
 			var island_id := String(descriptor["id"])
 			_prepared_terrain_arrays[island_id] = result["terrain"]
+			_prepared_collision_faces[island_id] = result["collision_faces"]
 			_prepared_detail_transforms[island_id] = result["details"]
 			_phase_msec["terrain"] += int(result["terrain_ms"])
+			_phase_msec["collision"] += int(result["collision_ms"])
 			_phase_msec["decoration"] += int(result["decoration_ms"])
 			_attaching_background = true
 			_load_chunk(completed_chunk)
@@ -251,7 +258,7 @@ func _poll_background_build() -> void:
 			_prepared_terrain_arrays.erase(island_id)
 			_prepared_detail_transforms.erase(island_id)
 			_last_background_attach_msec = Time.get_ticks_msec() - attach_started
-			_background_sampling_msec += int(result["terrain_ms"]) + int(result["decoration_ms"])
+			_background_sampling_msec += int(result["terrain_ms"]) + int(result["collision_ms"]) + int(result["decoration_ms"])
 			_background_jobs_completed += 1
 	_start_next_build()
 
@@ -273,6 +280,7 @@ func _process_attachment_stage() -> bool:
 			var mesh: Mesh = island.get_node("MeshInstance3D").mesh
 			var collision: CollisionShape3D = island.get_node("CollisionShape3D")
 			collision.shape = _make_terrain_collision_shape(mesh, descriptor)
+			_prepared_collision_faces.erase(String(descriptor["id"]))
 		_attachment_stage[chunk_key] = 2
 		_last_background_collision_msec = Time.get_ticks_msec() - started
 		_generation_msec += _last_background_collision_msec
@@ -679,7 +687,13 @@ func _make_terrain_collision_shape(mesh: Mesh, descriptor: Dictionary) -> Shape3
 		_touch_cached_island(cache_key)
 		return cached["collision"]
 	var started := Time.get_ticks_msec()
-	var shape: Shape3D = mesh.create_trimesh_shape()
+	var shape: Shape3D
+	if _prepared_collision_faces.has(cache_key):
+		var concave := ConcavePolygonShape3D.new()
+		concave.set_faces(_prepared_collision_faces[cache_key])
+		shape = concave
+	else:
+		shape = mesh.create_trimesh_shape()
 	_remember_island_resource(cache_key, "collision", shape)
 	_phase_msec["collision"] += Time.get_ticks_msec() - started
 	return shape

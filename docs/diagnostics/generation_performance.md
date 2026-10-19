@@ -65,3 +65,15 @@ Three fresh Godot 4.3 headless processes measured seed `12345` with `SURVIVE_ASY
 | 821, 815, 807 | 60.8, 61.6, 61.1 | 4, 4, 4 | 61, 61, 60 | 28, 28, 28 | 28, 28, 28 |
 
 The largest observed interval is now the terrain collision stage. The underlying collision geometry is unchanged, so this stage addresses scheduling rather than collision fidelity. A roughly 61 ms headless frame is still too long for a smooth 60 FPS target. Graphical FPS, draw calls and frame pacing remain unmeasured.
+
+## Background collision triangle preparation
+
+The background worker now expands the terrain's indexed triangles into the face array used by a `ConcavePolygonShape3D`. The main thread still creates and attaches the physics shape; synchronous generation and cached reloads retain their existing paths. The worker result is discarded on seed change, chunk unload or world deactivation. A geometry test compares all 103,386 generated face vertices against the terrain mesh for seed `12345`; the largest conversion difference observed was about 0.0001 world units, with identical triangle count and order.
+
+Three fresh Godot 4.3 headless processes, seed `12345`, `SURVIVE_ASYNC_GENERATION=1`:
+
+| Initial load wall time (ms) | Largest observed process-frame interval (ms) | Mesh/decor attachment (ms) | Collision stage (ms) | Resource/animal stage (ms) | Background sampling including collision faces (ms) | Cache reload (ms) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 798, 792, 799 | 31.4, 31.1, 31.4 | 4, 4, 4 | 31, 31, 31 | 29, 28, 28 | 639, 636, 643 | 28, 28, 28 |
+
+The collision-stage interval fell from about 61 ms to 31 ms in this headless setup. Resource/animal creation is now close to the collision stage in cost. The observed interval still exceeds a 16.7 ms frame budget, and graphical FPS, draw calls and frame pacing remain unmeasured.
