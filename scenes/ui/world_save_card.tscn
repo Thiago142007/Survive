@@ -3,5 +3,5 @@
 [ext_resource type="Script" path="res://scripts/ui/world_save_card.gd" id="1_script"]
 
 [node name="WorldSaveCard" type="PanelContainer"]
-custom_minimum_size = Vector2(600, 128)
+custom_minimum_size = Vector2(420, 128)
 script = ExtResource("1_script")
