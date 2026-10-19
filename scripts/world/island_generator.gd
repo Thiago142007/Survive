@@ -356,12 +356,15 @@ func _create_island(chunk: Node3D, descriptor: Dictionary) -> void:
 	island.add_child(mesh_instance)
 	var collision := CollisionShape3D.new()
 	collision.name = "CollisionShape3D"
-	collision.shape = mesh.create_trimesh_shape()
+	collision.shape = _make_terrain_collision_shape(mesh, descriptor)
 	island.add_child(collision)
 	chunk.add_child(island)
 	_spawn_resources(chunk, descriptor)
 	_spawn_tropical_details(chunk, descriptor)
 	_spawn_fauna(chunk, descriptor)
+
+func _make_terrain_collision_shape(mesh: Mesh, _descriptor: Dictionary) -> Shape3D:
+	return mesh.create_trimesh_shape()
 
 func _coast_radius(descriptor: Dictionary, angle: float) -> float:
 	var phases: Vector3 = descriptor["coast_phases"]

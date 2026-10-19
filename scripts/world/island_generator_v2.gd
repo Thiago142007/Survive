@@ -29,10 +29,10 @@ var _decoration_quality := "high"
 var _fields: Dictionary = {}
 var _coast_cache: Dictionary = {}
 var _generation_msec: int = 0
-var _phase_msec: Dictionary = {"terrain": 0, "resources": 0, "decoration": 0, "caves": 0}
+var _phase_msec: Dictionary = {"terrain": 0, "collision": 0, "resources": 0, "decoration": 0, "caves": 0}
 var _island_cache: Dictionary = {}
 var _cache_order: Array[String] = []
-var _cache_hits: Dictionary = {"terrain": 0, "details": 0}
+var _cache_hits: Dictionary = {"terrain": 0, "collision": 0, "details": 0}
 var _pending_chunks: Array[Vector2i] = []
 var _last_stream_focus := Vector3.INF
 
@@ -45,7 +45,7 @@ func apply_seed(new_seed: int) -> void:
 	_fields.clear()
 	_coast_cache.clear()
 	_generation_msec = 0
-	_phase_msec = {"terrain": 0, "resources": 0, "decoration": 0, "caves": 0}
+	_phase_msec = {"terrain": 0, "collision": 0, "resources": 0, "decoration": 0, "caves": 0}
 	super.apply_seed(new_seed)
 
 func _rebuild_layout() -> void:
@@ -53,7 +53,7 @@ func _rebuild_layout() -> void:
 	_last_stream_focus = Vector3.INF
 	_island_cache.clear()
 	_cache_order.clear()
-	_cache_hits = {"terrain": 0, "details": 0}
+	_cache_hits = {"terrain": 0, "collision": 0, "details": 0}
 	if generation_version == 1:
 		super._rebuild_layout()
 		return
@@ -471,6 +471,21 @@ func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 	_remember_island_resource(cache_key, "terrain", mesh)
 	_phase_msec["terrain"] += Time.get_ticks_msec() - started
 	return mesh
+
+func _make_terrain_collision_shape(mesh: Mesh, descriptor: Dictionary) -> Shape3D:
+	if generation_version == 1:
+		return super._make_terrain_collision_shape(mesh, descriptor)
+	var cache_key := String(descriptor["id"])
+	var cached: Dictionary = _island_cache.get(cache_key, {})
+	if cached.has("collision"):
+		_cache_hits["collision"] += 1
+		_touch_cached_island(cache_key)
+		return cached["collision"]
+	var started := Time.get_ticks_msec()
+	var shape: Shape3D = mesh.create_trimesh_shape()
+	_remember_island_resource(cache_key, "collision", shape)
+	_phase_msec["collision"] += Time.get_ticks_msec() - started
+	return shape
 
 func _touch_cached_island(cache_key: String) -> void:
 	_cache_order.erase(cache_key)
