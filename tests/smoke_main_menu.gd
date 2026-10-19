@@ -25,6 +25,13 @@ func _init() -> void:
 	menu._on_new_world_pressed()
 	var create_rect: Rect2 = menu.get_secondary_panel_rect("create", menu.get_viewport().get_visible_rect().size)
 	assert(menu.create_world_panel.get_rect().is_equal_approx(create_rect), "World creation screen must use the centered responsive rectangle")
+	var create_scroll := menu.get_node_or_null("CreateWorldPanel/Margin/FormScroll") as ScrollContainer
+	assert(create_scroll != null, "World creation fields must live in a scroll container")
+	var small_rect: Rect2 = menu.get_secondary_panel_rect("create", Vector2(640, 480))
+	menu.create_world_panel.position = small_rect.position
+	menu.create_world_panel.size = small_rect.size
+	await process_frame
+	assert(create_scroll.get_v_scroll_bar().max_value > 0.0, "World creation actions must remain reachable by scrolling on a 640x480 viewport")
 
 	print("Main menu smoke test: PASS")
 	quit()

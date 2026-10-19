@@ -20,11 +20,11 @@ const WORLD_THUMBNAIL_PLACEHOLDER: Texture2D = preload("res://assets/ui/world_th
 
 @onready var main_actions: VBoxContainer = $MainActions
 @onready var create_world_panel: Panel = $CreateWorldPanel
-@onready var name_input: LineEdit = $CreateWorldPanel/Margin/VBox/NameInput
-@onready var description_input: LineEdit = $CreateWorldPanel/Margin/VBox/DescriptionInput
-@onready var seed_input: LineEdit = $CreateWorldPanel/Margin/VBox/SeedInput
-@onready var difficulty_option: OptionButton = $CreateWorldPanel/Margin/VBox/DifficultyOption
-@onready var error_label: Label = $CreateWorldPanel/Margin/VBox/ErrorLabel
+@onready var name_input: LineEdit = $CreateWorldPanel/Margin/FormScroll/VBox/NameInput
+@onready var description_input: LineEdit = $CreateWorldPanel/Margin/FormScroll/VBox/DescriptionInput
+@onready var seed_input: LineEdit = $CreateWorldPanel/Margin/FormScroll/VBox/SeedInput
+@onready var difficulty_option: OptionButton = $CreateWorldPanel/Margin/FormScroll/VBox/DifficultyOption
+@onready var error_label: Label = $CreateWorldPanel/Margin/FormScroll/VBox/ErrorLabel
 
 var title_hotspots: Control
 var save_list_panel: PanelContainer
@@ -271,7 +271,7 @@ func _create_character_selector() -> void:
 	character_option.custom_minimum_size = Vector2(0, 40)
 	character_option.add_theme_color_override("font_color", Color("#ead2bd"))
 	character_option.add_theme_stylebox_override("normal", _hotspot_style(Color("#211713"), Color("#815c49")))
-	var vbox := $CreateWorldPanel/Margin/VBox as VBoxContainer
+	var vbox := $CreateWorldPanel/Margin/FormScroll/VBox as VBoxContainer
 	vbox.add_child(character_option)
 	vbox.move_child(character_option, vbox.get_node("ErrorLabel").get_index())
 

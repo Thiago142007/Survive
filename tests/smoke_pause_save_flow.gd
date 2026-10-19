@@ -15,6 +15,7 @@ func _run() -> void:
 	if not _expect(pause_menu != null and pause_menu.has_method("open_pause"), "Gameplay must include an interactive pause overlay"):
 		return
 	var main := root.get_node("Main")
+	assert(not auto_accept_quit, "Main must intercept native close requests until its asynchronous save finishes")
 	var saves := root.get_node("SaveManager")
 	var prior_dir: String = saves.save_directory
 	saves.save_directory = "user://smoke_pause_flow"

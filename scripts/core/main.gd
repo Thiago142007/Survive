@@ -340,6 +340,7 @@ func _current_world() -> Node:
 	return get_tree().current_scene
 
 func _ready() -> void:
+	get_tree().auto_accept_quit = false
 	call_deferred("_connect_building_signals")
 
 func _connect_building_signals() -> void:

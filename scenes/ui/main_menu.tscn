@@ -218,38 +218,49 @@ theme_override_styles/panel = SubResource("Panel_dark")
 visible = false
 
 [node name="Margin" type="MarginContainer" parent="CreateWorldPanel"]
-offset_left = 28.0
-offset_top = 25.0
-offset_right = 432.0
-offset_bottom = 511.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 20.0
+offset_right = -24.0
+offset_bottom = -20.0
 theme_override_constants/margin_left = 5
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 5
 theme_override_constants/margin_bottom = 4
 
-[node name="VBox" type="VBoxContainer" parent="CreateWorldPanel/Margin"]
+[node name="FormScroll" type="ScrollContainer" parent="CreateWorldPanel/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="CreateWorldPanel/Margin/FormScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="Header" type="Label" parent="CreateWorldPanel/Margin/VBox"]
+[node name="Header" type="Label" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 theme_override_colors/font_color = Color(0.94, 0.95, 0.83, 1)
 theme_override_font_sizes/font_size = 27
 text = "Novo mundo"
 
-[node name="Caption" type="Label" parent="CreateWorldPanel/Margin/VBox"]
+[node name="Caption" type="Label" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 theme_override_colors/font_color = Color(0.63, 0.76, 0.7, 1)
 theme_override_font_sizes/font_size = 13
 text = "Escolha como sua sobrevivência começa."
 
-[node name="Divider" type="Panel" parent="CreateWorldPanel/Margin/VBox"]
+[node name="Divider" type="Panel" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 1)
 theme_override_styles/panel = SubResource("Divider")
 
-[node name="NameCaption" type="Label" parent="CreateWorldPanel/Margin/VBox"]
+[node name="NameCaption" type="Label" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 theme_override_colors/font_color = Color(0.74, 0.83, 0.77, 1)
 theme_override_font_sizes/font_size = 12
 text = "NOME DA ILHA"
 
-[node name="NameInput" type="LineEdit" parent="CreateWorldPanel/Margin/VBox"]
+[node name="NameInput" type="LineEdit" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 40)
 theme_override_colors/font_color = Color(0.91, 0.94, 0.84, 1)
 theme_override_colors/font_placeholder_color = Color(0.51, 0.64, 0.59, 1)
@@ -258,7 +269,7 @@ theme_override_styles/focus = SubResource("Input_focus")
 placeholder_text = "Nome do mundo"
 text = "Ilha inicial"
 
-[node name="DescriptionInput" type="LineEdit" parent="CreateWorldPanel/Margin/VBox"]
+[node name="DescriptionInput" type="LineEdit" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 40)
 theme_override_colors/font_color = Color(0.91, 0.94, 0.84, 1)
 theme_override_colors/font_placeholder_color = Color(0.51, 0.64, 0.59, 1)
@@ -266,7 +277,7 @@ theme_override_styles/normal = SubResource("Input_normal")
 theme_override_styles/focus = SubResource("Input_focus")
 placeholder_text = "Uma nota sobre este lugar (opcional)"
 
-[node name="SeedInput" type="LineEdit" parent="CreateWorldPanel/Margin/VBox"]
+[node name="SeedInput" type="LineEdit" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 40)
 theme_override_colors/font_color = Color(0.91, 0.94, 0.84, 1)
 theme_override_colors/font_placeholder_color = Color(0.51, 0.64, 0.59, 1)
@@ -275,12 +286,12 @@ theme_override_styles/focus = SubResource("Input_focus")
 placeholder_text = "Seed aleatória"
 text = "55960"
 
-[node name="DifficultyCaption" type="Label" parent="CreateWorldPanel/Margin/VBox"]
+[node name="DifficultyCaption" type="Label" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 theme_override_colors/font_color = Color(0.74, 0.83, 0.77, 1)
 theme_override_font_sizes/font_size = 12
 text = "DIFICULDADE"
 
-[node name="DifficultyOption" type="OptionButton" parent="CreateWorldPanel/Margin/VBox"]
+[node name="DifficultyOption" type="OptionButton" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 40)
 theme_override_colors/font_color = Color(0.91, 0.94, 0.84, 1)
 theme_override_font_sizes/font_size = 14
@@ -290,15 +301,15 @@ popup/item_0/text = "Fácil — vida e fome"
 popup/item_1/text = "Normal — vida, fome e sede"
 popup/item_2/text = "Difícil — vida, fome, sede e energia"
 
-[node name="ErrorLabel" type="Label" parent="CreateWorldPanel/Margin/VBox"]
+[node name="ErrorLabel" type="Label" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 theme_override_colors/font_color = Color(0.96, 0.57, 0.42, 1)
 autowrap_mode = 2
 text = ""
 
-[node name="Spacer" type="Control" parent="CreateWorldPanel/Margin/VBox"]
+[node name="Spacer" type="Control" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 6)
 
-[node name="StartButton" type="Button" parent="CreateWorldPanel/Margin/VBox"]
+[node name="StartButton" type="Button" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 46)
 theme_override_colors/font_color = Color(0.09, 0.13, 0.1, 1)
 theme_override_colors/font_hover_color = Color(0.09, 0.13, 0.1, 1)
@@ -308,7 +319,7 @@ theme_override_styles/hover = SubResource("Button_hover")
 theme_override_styles/pressed = SubResource("Button_pressed")
 text = "Começar sobrevivência"
 
-[node name="BackButton" type="Button" parent="CreateWorldPanel/Margin/VBox"]
+[node name="BackButton" type="Button" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 custom_minimum_size = Vector2(0, 36)
 theme_override_colors/font_color = Color(0.7, 0.81, 0.74, 1)
 theme_override_colors/font_hover_color = Color(0.95, 0.93, 0.77, 1)
@@ -320,5 +331,5 @@ text = "Voltar"
 
 [connection signal="pressed" from="MainActions/NewWorldButton" to="." method="_on_new_world_pressed"]
 [connection signal="pressed" from="MainActions/QuitButton" to="." method="_on_quit_pressed"]
-[connection signal="pressed" from="CreateWorldPanel/Margin/VBox/StartButton" to="." method="_on_start_pressed"]
-[connection signal="pressed" from="CreateWorldPanel/Margin/VBox/BackButton" to="." method="_on_back_pressed"]
+[connection signal="pressed" from="CreateWorldPanel/Margin/FormScroll/VBox/StartButton" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="CreateWorldPanel/Margin/FormScroll/VBox/BackButton" to="." method="_on_back_pressed"]
