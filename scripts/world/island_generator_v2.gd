@@ -50,6 +50,7 @@ var _prepared_terrain_arrays: Dictionary = {}
 var _prepared_collision_faces: Dictionary = {}
 var _pending_collision_parts: Dictionary = {}
 var _prepared_detail_transforms: Dictionary = {}
+var _prepared_resource_plans: Dictionary = {}
 var _wanted_chunks: Dictionary = {}
 var _build_queue: Array[Vector2i] = []
 var _build_thread: Thread
@@ -175,6 +176,7 @@ func _cancel_pending_builds() -> void:
 	_prepared_collision_faces.clear()
 	_pending_collision_parts.clear()
 	_prepared_detail_transforms.clear()
+	_prepared_resource_plans.clear()
 
 func _load_chunk(chunk_key: Vector2i) -> void:
 	super._load_chunk(chunk_key)
@@ -189,6 +191,7 @@ func _unload_chunk(chunk_key: Vector2i) -> void:
 			var island_id := String(descriptor["id"])
 			_prepared_collision_faces.erase(island_id)
 			_pending_collision_parts.erase(island_id)
+			_prepared_resource_plans.erase(island_id)
 	super._unload_chunk(chunk_key)
 
 func _request_chunk(chunk_key: Vector2i) -> void:
@@ -257,9 +260,11 @@ func _poll_background_build() -> void:
 			_prepared_terrain_arrays[island_id] = result["terrain"]
 			_prepared_collision_faces[island_id] = result["collision_faces"]
 			_prepared_detail_transforms[island_id] = result["details"]
+			_prepared_resource_plans[island_id] = result["resources"]
 			_phase_msec["terrain"] += int(result["terrain_ms"])
 			_phase_msec["collision"] += int(result["collision_ms"])
 			_phase_msec["decoration"] += int(result["decoration_ms"])
+			_phase_msec["resources"] += int(result["resources_ms"])
 			_attaching_background = true
 			_load_chunk(completed_chunk)
 			_attaching_background = false
@@ -270,7 +275,7 @@ func _poll_background_build() -> void:
 			_last_background_attach_msec = Time.get_ticks_msec() - attach_started
 			_last_background_collision_msec = 0
 			_max_background_collision_piece_msec = 0
-			_background_sampling_msec += int(result["terrain_ms"]) + int(result["collision_ms"]) + int(result["decoration_ms"])
+			_background_sampling_msec += int(result["terrain_ms"]) + int(result["collision_ms"]) + int(result["decoration_ms"]) + int(result["resources_ms"])
 			_background_jobs_completed += 1
 	_start_next_build()
 
@@ -279,6 +284,9 @@ func _process_attachment_stage() -> bool:
 		return false
 	var chunk_key := _pending_attachment_chunks[0]
 	if not loaded_chunks.has(chunk_key):
+		for descriptor in island_descriptors:
+			if descriptor["chunk"] == chunk_key:
+				_prepared_resource_plans.erase(String(descriptor["id"]))
 		_pending_attachment_chunks.pop_front()
 		_attachment_stage.erase(chunk_key)
 		return false
@@ -941,16 +949,8 @@ func _resource_position(rng: RandomNumberGenerator, descriptor: Dictionary, marg
 	var point := _pick_surface(rng, descriptor, margin, int(descriptor["index"]) == 0)
 	return point if point != Vector3.INF else Vector3(0.0, _terrain_height(descriptor, Vector2.ZERO), 0.0)
 
-func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
-	if generation_version == 1:
-		super._spawn_resources(chunk, descriptor)
-		return
-	if _attaching_background:
-		return
-	var started := Time.get_ticks_msec()
-	var tree_scene: PackedScene = load(RESOURCE_SCENE_PATHS["tree"])
-	var rock_scene: PackedScene = load(RESOURCE_SCENE_PATHS["rock"])
-	var center: Vector3 = descriptor["center"]
+func _build_resource_plan(descriptor: Dictionary) -> Array[Dictionary]:
+	var plan: Array[Dictionary] = []
 	var index_id := int(descriptor["index"])
 	var tree_rng := _stream("collectible_trees", index_id)
 	var rock_rng := _stream("collectible_rocks", index_id)
@@ -965,26 +965,36 @@ func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
 			var ecology_chance := 0.28 if biome in ["arid", "tundra"] else (0.55 if biome == "grassland" else 1.0)
 			if tree_rng.randf() > ecology_chance:
 				continue
-		var tree := tree_scene.instantiate() as Node3D
-		var tree_id := _persistent_id(descriptor, "tree", index)
-		tree.set("persistent_id", tree_id)
-		tree.position = center + point
-		tree.rotation.y = tree_rng.randf_range(0.0, TAU)
-		tree.scale = Vector3.ONE * tree_rng.randf_range(0.80, 1.35)
-		chunk.add_child(tree)
-		_apply_saved_object_state(tree, "resources", tree_id)
+		plan.append({"type": "tree", "index": index, "point": point, "rotation": tree_rng.randf_range(0.0, TAU), "scale": tree_rng.randf_range(0.80, 1.35)})
 	for index in range(int(descriptor["rock_count"])):
 		var point := _pick_surface(rock_rng, descriptor, 5.0, index_id == 0 and index < 5)
 		if point == Vector3.INF:
 			continue
-		var rock := rock_scene.instantiate() as Node3D
-		var rock_id := _persistent_id(descriptor, "rock", index)
-		rock.set("persistent_id", rock_id)
-		rock.position = center + point
-		rock.rotation.y = rock_rng.randf_range(0.0, TAU)
-		rock.scale = Vector3.ONE * rock_rng.randf_range(0.75, 1.45)
-		chunk.add_child(rock)
-		_apply_saved_object_state(rock, "resources", rock_id)
+		plan.append({"type": "rock", "index": index, "point": point, "rotation": rock_rng.randf_range(0.0, TAU), "scale": rock_rng.randf_range(0.75, 1.45)})
+	return plan
+
+func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
+	if generation_version == 1:
+		super._spawn_resources(chunk, descriptor)
+		return
+	if _attaching_background:
+		return
+	var started := Time.get_ticks_msec()
+	var island_id := String(descriptor["id"])
+	var plan: Array = _prepared_resource_plans[island_id] if _prepared_resource_plans.has(island_id) else _build_resource_plan(descriptor)
+	_prepared_resource_plans.erase(island_id)
+	var tree_scene: PackedScene = load(RESOURCE_SCENE_PATHS["tree"])
+	var rock_scene: PackedScene = load(RESOURCE_SCENE_PATHS["rock"])
+	var center: Vector3 = descriptor["center"]
+	for placement in plan:
+		var resource := (tree_scene if placement["type"] == "tree" else rock_scene).instantiate() as Node3D
+		var resource_id := _persistent_id(descriptor, placement["type"], int(placement["index"]))
+		resource.set("persistent_id", resource_id)
+		resource.position = center + placement["point"]
+		resource.rotation.y = placement["rotation"]
+		resource.scale = Vector3.ONE * placement["scale"]
+		chunk.add_child(resource)
+		_apply_saved_object_state(resource, "resources", resource_id)
 	_phase_msec["resources"] += Time.get_ticks_msec() - started
 
 func _spawn_fauna(chunk: Node3D, descriptor: Dictionary) -> void:

@@ -25,5 +25,8 @@ func run() -> Dictionary:
 	var detail_started := Time.get_ticks_msec()
 	var details: Dictionary = sampler.call("_build_detail_transforms", descriptor)
 	var detail_ms := Time.get_ticks_msec() - detail_started
+	var resources_started := Time.get_ticks_msec()
+	var resources: Array = sampler.call("_build_resource_plan", descriptor)
+	var resources_ms := Time.get_ticks_msec() - resources_started
 	sampler.free()
-	return {"terrain": terrain, "collision_faces": collision_faces, "details": details, "terrain_ms": terrain_ms, "collision_ms": collision_ms, "decoration_ms": detail_ms}
+	return {"terrain": terrain, "collision_faces": collision_faces, "details": details, "resources": resources, "terrain_ms": terrain_ms, "collision_ms": collision_ms, "decoration_ms": detail_ms, "resources_ms": resources_ms}

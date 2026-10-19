@@ -89,3 +89,15 @@ A local shape-only probe on seed `12345` measured about 30.6 ms to set all 103,3
 | 795, 795, 794 | 29.9, 29.9, 29.3 | 27, 25, 26 | 7, 7, 7 | 29, 29, 28 | 28, 28, 28 |
 
 The resource/animal stage now determines the largest observed interval. The terrain still has 34,462 triangles. Four physics shapes may have different contact behavior at their boundaries than one shape, so representative gameplay and graphical profiling remain necessary. The headless interval remains above a 16.7 ms frame budget.
+
+## Background resource placement planning
+
+The version 2 worker now calculates collectible tree and rock placements alongside terrain, collision faces and decoration. The main thread still creates resource nodes and restores their saved state after collision is ready. Synchronous generation and cached reloads calculate the same plan on demand. Plans are discarded when their chunk unloads or a build is cancelled. Frozen resource fingerprints cover two seeds, the first outer island and the coastline mode used by older version 2 saves; the async test also checks the resulting starting island.
+
+Three fresh Godot 4.3 headless processes measured seed `12345` with `SURVIVE_ASYNC_GENERATION=1`:
+
+| Initial load wall time (ms) | Largest observed process-frame interval (ms) | Resource/animal attachment (ms) | Background sampling including resources (ms) | Cache reload (ms) |
+| --- | --- | --- | --- | --- |
+| 831, 821, 824 | 28.9, 29.1, 29.4 | 17, 17, 17 | 670, 667, 665 | 28, 28, 28 |
+
+Resource and animal attachment fell from roughly 28–29 ms at the preceding checkpoint to 17 ms here. The largest observed process-frame interval remained near 29 ms, so this change alone does not meet a 16.7 ms frame budget. Initial readiness stayed around 0.8 seconds, and cached reloads still calculate placements synchronously. These headless CPU measurements are not graphical FPS or GPU timings.

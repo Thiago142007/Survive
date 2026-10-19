@@ -58,6 +58,7 @@ func _run() -> void:
 		var part_hit: Dictionary = generator.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(sample + Vector3.UP * 20.0, sample - Vector3.UP * 20.0))
 		assert(part_hit.get("collider") == chunk.get_node("central"), "Cada parte deve participar da fisica")
 	generator.call("_unload_chunk", Vector2i.ZERO)
+	assert(generator._prepared_resource_plans.is_empty(), "Descarregar a ilha deve descartar planos de recursos")
 	generator.set_world_active(true)
 	assert(generator.is_spawn_ready(), "A volta pelo cache deve continuar imediata")
 	var reloaded: Node3D = generator.loaded_chunks[Vector2i.ZERO]
@@ -79,6 +80,7 @@ func _run() -> void:
 	await process_frame
 	changed.apply_seed(67890)
 	assert(int(changed.get_generation_diagnostics()["attachment_chunks_pending"]) == 0)
+	assert(changed._prepared_resource_plans.is_empty(), "Trocar a seed deve descartar planos antigos")
 	changed_started = Time.get_ticks_msec()
 	while not changed.is_spawn_ready() and Time.get_ticks_msec() - changed_started < 10000:
 		await process_frame
