@@ -27,3 +27,9 @@ For seed `12345`, the headless benchmark reported these visible instance counts 
 | High | 380 | 485 | 49 |
 
 The profiles limit rendered decorative instances. They do not reduce first-generation CPU work or the memory used to hold the complete instance sets. GPU and frame-rate gains still need measurement in a graphical build.
+
+## Progressive island streaming
+
+Version 2 now loads the player's current chunk and any island whose terrain reaches the player immediately. Empty nearby chunks also load immediately. Other island chunks enter a nearest-first queue; the default budget is one distant chunk per frame through `max_distant_chunks_per_frame`. Moving away removes obsolete requests, and deactivating the world clears the queue. Diagnostics expose `pending_chunks` so stalls and incomplete streaming can be observed.
+
+This prevents several distant islands from being generated in one frame. Each individual island still builds its mesh, collision, resources, and decoration synchronously on the main thread when its queued turn arrives. This stage is progressive scheduling, not background-thread generation, so the worst single-island stall remains.

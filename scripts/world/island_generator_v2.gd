@@ -14,6 +14,7 @@ const DECORATION_QUALITY_SCALE := {
 	"high": {"ForestTrunks": 1.0, "ForestCanopies": 1.0, "GroundCover": 1.0, "StoneCover": 1.0}
 }
 
+@export_range(1, 4, 1) var max_distant_chunks_per_frame: int = 1
 var _decoration_quality := "high"
 @export_enum("low", "medium", "high") var decoration_quality: String:
 	get:
@@ -32,11 +33,15 @@ var _phase_msec: Dictionary = {"terrain": 0, "resources": 0, "decoration": 0, "c
 var _island_cache: Dictionary = {}
 var _cache_order: Array[String] = []
 var _cache_hits: Dictionary = {"terrain": 0, "details": 0}
+var _pending_chunks: Array[Vector2i] = []
+var _last_stream_focus := Vector3.INF
 
 func _init() -> void:
 	generation_version = GENERATION_VERSION
 
 func apply_seed(new_seed: int) -> void:
+	_pending_chunks.clear()
+	_last_stream_focus = Vector3.INF
 	_fields.clear()
 	_coast_cache.clear()
 	_generation_msec = 0
@@ -44,6 +49,8 @@ func apply_seed(new_seed: int) -> void:
 	super.apply_seed(new_seed)
 
 func _rebuild_layout() -> void:
+	_pending_chunks.clear()
+	_last_stream_focus = Vector3.INF
 	_island_cache.clear()
 	_cache_order.clear()
 	_cache_hits = {"terrain": 0, "details": 0}
@@ -820,25 +827,78 @@ func _refresh_streaming() -> void:
 		return
 	var focus: Vector3 = _get_focus_position()
 	var focus_chunk := _world_to_chunk(focus)
-	if focus_chunk == _last_focus_chunk:
+	if focus_chunk == _last_focus_chunk and Vector2(focus.x - _last_stream_focus.x, focus.z - _last_stream_focus.z).length_squared() < 225.0:
+		_load_urgent_pending_islands(focus)
 		return
 	_last_focus_chunk = focus_chunk
+	_last_stream_focus = focus
 	var desired: Dictionary = {}
+	var island_chunks: Dictionary = {}
+	var immediate: Dictionary = {focus_chunk: true}
 	for x in range(focus_chunk.x - stream_radius_chunks, focus_chunk.x + stream_radius_chunks + 1):
 		for z in range(focus_chunk.y - stream_radius_chunks, focus_chunk.y + stream_radius_chunks + 1):
 			desired[Vector2i(x, z)] = true
 	for descriptor in island_descriptors:
 		var center: Vector3 = descriptor["center"]
-		var aspect := float(descriptor["aspect"])
-		var reach := float(descriptor["radius"]) * maxf(aspect, 1.0 / aspect) * 1.42 + 45.0
-		if Vector2(focus.x - center.x, focus.z - center.z).length() < reach + float(stream_radius_chunks) * chunk_size:
-			desired[descriptor["chunk"]] = true
-	for key in desired:
-		if not loaded_chunks.has(key):
-			_load_chunk(key)
+		var reach := _island_reach(descriptor)
+		var island_chunk: Vector2i = descriptor["chunk"]
+		island_chunks[island_chunk] = true
+		var distance := Vector2(focus.x - center.x, focus.z - center.z).length()
+		if distance < reach + maxf(20.0, float(stream_radius_chunks) * chunk_size):
+			desired[island_chunk] = true
+		if distance < reach + 20.0:
+			immediate[island_chunk] = true
 	for key in loaded_chunks.keys().duplicate():
 		if not desired.has(key):
 			_unload_chunk(key)
+	_pending_chunks.clear()
+	for key in desired:
+		if loaded_chunks.has(key):
+			continue
+		if immediate.has(key) or not island_chunks.has(key):
+			_load_chunk(key)
+		else:
+			_pending_chunks.append(key)
+	_pending_chunks.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var a_distance := (a.x - focus_chunk.x) * (a.x - focus_chunk.x) + (a.y - focus_chunk.y) * (a.y - focus_chunk.y)
+		var b_distance := (b.x - focus_chunk.x) * (b.x - focus_chunk.x) + (b.y - focus_chunk.y) * (b.y - focus_chunk.y)
+		if a_distance != b_distance:
+			return a_distance < b_distance
+		return a.x < b.x or (a.x == b.x and a.y < b.y)
+	)
+
+func _island_reach(descriptor: Dictionary) -> float:
+	var aspect := float(descriptor["aspect"])
+	return float(descriptor["radius"]) * maxf(aspect, 1.0 / aspect) * 1.42 + 45.0
+
+func _load_urgent_pending_islands(focus: Vector3) -> void:
+	for descriptor in island_descriptors:
+		var chunk_key: Vector2i = descriptor["chunk"]
+		if not _pending_chunks.has(chunk_key):
+			continue
+		var center: Vector3 = descriptor["center"]
+		if Vector2(focus.x - center.x, focus.z - center.z).length() < _island_reach(descriptor) + 20.0:
+			_pending_chunks.erase(chunk_key)
+			_load_chunk(chunk_key)
+
+func _process(_delta: float) -> void:
+	if not _world_is_active():
+		return
+	_refresh_streaming()
+	if generation_version == 1:
+		return
+	for _index in range(maxi(1, max_distant_chunks_per_frame)):
+		if _pending_chunks.is_empty():
+			break
+		var chunk_key: Vector2i = _pending_chunks.pop_front()
+		if not loaded_chunks.has(chunk_key):
+			_load_chunk(chunk_key)
+
+func set_world_active(active: bool) -> void:
+	if not active:
+		_pending_chunks.clear()
+		_last_stream_focus = Vector3.INF
+	super.set_world_active(active)
 
 func get_generation_diagnostics() -> Dictionary:
 	var counts := {"forest": 0, "ground": 0, "rocks": 0, "caves": 0}
@@ -862,4 +922,4 @@ func get_generation_diagnostics() -> Dictionary:
 				for child in node.get_children():
 					if child.name.begins_with("Cave_"):
 						counts["caves"] += 1
-	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
+	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "pending_chunks": _pending_chunks.size(), "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
