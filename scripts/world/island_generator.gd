@@ -57,6 +57,11 @@ func _process(_delta: float) -> void:
 	if _world_is_active():
 		_refresh_streaming()
 
+func _exit_tree() -> void:
+	# Imported model templates are cached statically for the lifetime of the
+	# world. Release those PackedScenes when the world scene is closed.
+	IMPORTED_MODEL_VARIANT.clear_cache()
+
 func apply_seed(new_seed: int) -> void:
 	seed = new_seed
 	for chunk in loaded_chunks.values():

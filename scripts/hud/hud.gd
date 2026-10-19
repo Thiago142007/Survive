@@ -10,10 +10,19 @@ class_name HUD
 @onready var thirst_label: Label = $Root/ThirstLabel
 @onready var energy_label: Label = $Root/EnergyLabel
 @onready var tool_label: Label = $Root/ToolLabel
+@onready var fps_counter: Label = $Root/FPSCounter
 
 var _inv_cache: Node = null
+var _fps_counter_position := "off"
+
+func _ready() -> void:
+	# SettingsManager can call the setter before this scene's @onready references
+	# are initialized. Apply the stored choice once the HUD nodes are available.
+	_apply_fps_counter_position()
 
 func _process(_delta: float) -> void:
+	if _fps_counter_position != "off" and is_instance_valid(fps_counter):
+		fps_counter.text = "FPS: %d" % Engine.get_frames_per_second()
 	if Main.player and not _inv_cache:
 		_inv_cache = Main.player.get_node("Inventory")
 	if _inv_cache:
@@ -40,3 +49,25 @@ func show_message(text: String, duration: float = 2.0) -> void:
 
 func set_inventory_open(is_open: bool) -> void:
 	crosshair.visible = not is_open
+
+func set_fps_counter_position(position_name: String) -> void:
+	_fps_counter_position = position_name if position_name in ["off", "top_left", "top_right", "bottom_left", "bottom_right"] else "off"
+	_apply_fps_counter_position()
+
+func _apply_fps_counter_position() -> void:
+	if not is_instance_valid(fps_counter):
+		return
+	fps_counter.visible = _fps_counter_position != "off"
+	if not fps_counter.visible:
+		return
+	var is_right := _fps_counter_position.ends_with("right")
+	var is_bottom := _fps_counter_position.begins_with("bottom")
+	fps_counter.anchor_left = 1.0 if is_right else 0.0
+	fps_counter.anchor_right = 1.0 if is_right else 0.0
+	fps_counter.anchor_top = 1.0 if is_bottom else 0.0
+	fps_counter.anchor_bottom = 1.0 if is_bottom else 0.0
+	fps_counter.offset_left = -112.0 if is_right else 12.0
+	fps_counter.offset_right = -12.0 if is_right else 112.0
+	fps_counter.offset_top = -34.0 if is_bottom else 12.0
+	fps_counter.offset_bottom = -10.0 if is_bottom else 36.0
+	fps_counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if is_right else HORIZONTAL_ALIGNMENT_LEFT
