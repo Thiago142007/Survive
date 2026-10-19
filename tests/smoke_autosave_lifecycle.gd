@@ -50,11 +50,27 @@ func _run() -> void:
 	var saved: Dictionary = saves.read_save(active_id)
 	if not _expect(saved.get("ok", false) and saved["data"].get("name") == "Autosaved island", "Active world must autosave after the interval"):
 		return
-	main.return_to_title()
+	if not _expect(saves.load_world_thumbnail(active_id) == null, "Manual and automatic saves must not create exit thumbnails"):
+		return
+	if not _expect(await main._save_world_and_thumbnail(), "Shared exit helper must save the world and its thumbnail"):
+		return
+	var thumbnail_path: String = ProjectSettings.globalize_path(saves.get_thumbnail_path(active_id))
+	var thumbnail_before_normal_save := FileAccess.get_file_as_bytes(thumbnail_path)
+	var stored_thumbnail := saves.load_world_thumbnail(active_id) as Texture2D
+	if not _expect(stored_thumbnail != null and stored_thumbnail.get_width() == 480 and stored_thumbnail.get_height() == 270, "Shared exit helper must create a decodable thumbnail"):
+		return
+	main.world_name = "Manual save after preview"
+	if not _expect(saves.save_active_world(), "Manual save must remain available after thumbnail capture"):
+		return
+	main.world_name = "Autosave after preview"
+	main._process(1.0)
+	if not _expect(FileAccess.get_file_as_bytes(thumbnail_path) == thumbnail_before_normal_save, "Manual and automatic saves must not refresh an existing exit thumbnail"):
+		return
+	await main.return_to_title()
 	saved = saves.read_save(active_id)
 	if not _expect(saved.get("ok", false) and not main.game_started and paused, "Returning to title must save before deactivating gameplay"):
 		return
-	if not _expect(saves.delete_save(active_id), "Lifecycle test save must be removable"):
+	if not _expect(saves.delete_save(active_id), "Lifecycle test save and thumbnail must be removable"):
 		return
 	saves.set_active_world("")
 	saves.save_directory = original_dir

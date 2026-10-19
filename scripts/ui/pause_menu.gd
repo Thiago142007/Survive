@@ -40,8 +40,8 @@ func save_now() -> bool:
 	return success
 
 func return_to_title() -> void:
-	Main.return_to_title()
-	if not Main.game_started:
+	var returned: bool = await Main.return_to_title()
+	if returned:
 		visible = false
 	else:
 		status_label.text = "Falha ao salvar. Seu mundo continua aberto."

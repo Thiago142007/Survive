@@ -52,24 +52,45 @@ func _run() -> void:
 	var active_id: String = saves.active_world_id
 	if not _expect(not active_id.is_empty(), "Manual save must assign an active world ID"):
 		return
+	if not _expect(saves.load_world_thumbnail(active_id) == null, "Manual saves must not refresh the world thumbnail"):
+		return
 	main.game_started = false
 	if not _expect(not pause_menu.save_now() and pause_menu.status_label.text.contains("Falha") and pause_menu.visible, "Save failure must show feedback and keep the pause overlay open"):
 		return
 	main.game_started = true
 	main.world_name = "Saved before title"
-	pause_menu.return_to_title()
+	await pause_menu.return_to_title()
 	var saved: Dictionary = saves.read_save(active_id)
 	if not _expect(saved.get("ok", false) and saved["data"].get("name") == "Saved before title", "Return to menu must save state before transition"):
 		return
+	var exit_thumbnail := saves.load_world_thumbnail(active_id) as Texture2D
+	if not _expect(exit_thumbnail != null and exit_thumbnail.get_width() == 480 and exit_thumbnail.get_height() == 270, "Returning to title must store a decodable 480x270 gameplay view"):
+		return
 	if not _expect(not main.game_started and paused and world.get_node("MainMenu").visible and not world.get_node("HUD").visible and not pause_menu.visible, "Title menu must become interactive after return"):
+		return
+	var thumbnail_path: String = ProjectSettings.globalize_path(saves.get_thumbnail_path(active_id))
+	var prior_thumbnail_bytes := FileAccess.get_file_as_bytes(thumbnail_path)
+	if not _expect(main.start_world_from_save(saved["data"]), "Saved world must be reloadable before testing a failed return"):
+		return
+	pause_menu.open_pause()
+	var primary_save_path := ProjectSettings.globalize_path("%s/%s.json" % [saves.save_directory, active_id])
+	var broken_save := FileAccess.open(primary_save_path, FileAccess.WRITE)
+	if not _expect(broken_save != null, "Test must be able to corrupt its isolated primary save"):
+		return
+	broken_save.store_string("{broken}")
+	broken_save.close()
+	await pause_menu.return_to_title()
+	if not _expect(main.game_started and pause_menu.visible and pause_menu.status_label.text.contains("Falha"), "Failed world save must keep the current world and pause screen active"):
+		return
+	if not _expect(FileAccess.get_file_as_bytes(thumbnail_path) == prior_thumbnail_bytes, "Failed world save must preserve the previous valid thumbnail"):
 		return
 	if not _expect(main.start_new_world({"name": "After pause", "seed": 9876}) and player.gameplay_input_enabled, "Starting a new world after the pause menu must restore gameplay input"):
 		return
-	main.return_to_title()
+	await main.return_to_title()
 	var next_world_save: Dictionary = saves.read_save(saves.active_world_id)
 	if not _expect(next_world_save.get("ok", false) and main.start_world_from_save(next_world_save["data"]) and player.gameplay_input_enabled, "Loading a world after the pause menu must restore gameplay input"):
 		return
-	main.return_to_title()
+	await main.return_to_title()
 	if not _expect(saves.delete_save(active_id), "Pause flow test save must be removable"):
 		return
 	if not _expect(saves.delete_save(saves.active_world_id), "Follow-up world save must be removable"):

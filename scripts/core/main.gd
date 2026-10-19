@@ -12,6 +12,7 @@ var playtime_seconds: float = 0.0
 var game_started: bool = false
 var autosave_interval_seconds: float = 120.0
 var _autosave_elapsed: float = 0.0
+var _close_request_in_progress := false
 signal save_status(success: bool, message: String)
 
 func _process(delta: float) -> void:
@@ -254,21 +255,69 @@ func _is_finite_vector(value: Variant, dimensions: int) -> bool:
 			return false
 	return true
 
-func return_to_title() -> void:
-	if game_started and not SaveManager.save_active_world():
+func _capture_exit_view() -> Image:
+	var world := _current_world()
+	var pause_menu := world.get_node_or_null("PauseMenu") if world else null
+	var title_menu := world.get_node_or_null("MainMenu") if world else null
+	var pause_was_visible := bool(pause_menu.visible) if pause_menu else false
+	var title_was_visible := bool(title_menu.visible) if title_menu else false
+	if pause_menu:
+		pause_menu.visible = false
+	if title_menu:
+		title_menu.visible = false
+	await RenderingServer.frame_post_draw
+	var viewport := get_tree().root
+	var captured_image := viewport.get_texture().get_image() if viewport else null
+	if pause_menu:
+		pause_menu.visible = pause_was_visible
+	if title_menu:
+		title_menu.visible = title_was_visible
+	return captured_image
+
+func _save_world_and_thumbnail() -> bool:
+	if not game_started:
+		return true
+	var exit_view: Image = await _capture_exit_view()
+	if not SaveManager.save_active_world():
+		return false
+	var active_id := String(SaveManager.active_world_id)
+	if not active_id.is_empty() and exit_view != null and not exit_view.is_empty():
+		SaveManager.write_world_thumbnail(active_id, exit_view)
+	return true
+
+func return_to_title() -> bool:
+	if game_started and not await _save_world_and_thumbnail():
+		var world_on_failure := _current_world()
+		var pause_menu := world_on_failure.get_node_or_null("PauseMenu") if world_on_failure else null
+		if pause_menu:
+			pause_menu.visible = true
+		get_tree().paused = true
 		save_status.emit(false, "Não foi possível salvar; seu mundo continua aberto")
-		return
+		return false
 	game_started = false
 	var world := _current_world()
 	var generator = world.get_node_or_null("IslandGenerator") if world else null
 	if generator:
 		generator.set_world_active(false)
 	_set_game_ui(false)
+	return true
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST and game_started:
-		SaveManager.save_active_world()
-		get_tree().quit()
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and not _close_request_in_progress:
+		_close_request_in_progress = true
+		call_deferred("_save_and_quit")
+
+func _save_and_quit() -> void:
+	if game_started and not await _save_world_and_thumbnail():
+		_close_request_in_progress = false
+		var world := _current_world()
+		var pause_menu := world.get_node_or_null("PauseMenu") if world else null
+		if pause_menu:
+			pause_menu.visible = true
+		get_tree().paused = true
+		save_status.emit(false, "Não foi possível salvar; seu mundo continua aberto")
+		return
+	get_tree().quit()
 
 func _set_game_ui(in_game: bool) -> void:
 	var world := _current_world()

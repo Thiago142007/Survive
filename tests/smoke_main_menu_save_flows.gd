@@ -79,7 +79,7 @@ func _run() -> void:
 	menu._on_load_selected_pressed()
 	if not _expect(main.game_started and saves.active_world_id == menu._save_ids[0], "Loading a world must activate its selected save"):
 		return
-	main.return_to_title()
+	await main.return_to_title()
 	paused = false
 	menu._on_new_world_pressed()
 	menu.name_input.text = "New island"
@@ -95,7 +95,7 @@ func _run() -> void:
 		return
 	if not _expect(main.player._cam_mode == 0 and is_zero_approx(main.player.camera_pivot.rotation.x) and main.player.hotbar_tools == ["hand", "knife", "stone_axe", "stone_pickaxe", "shovel"], "A new world must start with first-person camera pitch and the default hotbar"):
 		return
-	main.return_to_title()
+	await main.return_to_title()
 	var recoverable_id: String = saves.create_save(_valid_save("Recovered island", 88))
 	if not _expect(not recoverable_id.is_empty() and saves.write_save(recoverable_id, _valid_save("Recovered island", 89)), "Recovery fixture must have a valid backup"):
 		return
@@ -114,7 +114,7 @@ func _run() -> void:
 		return
 	if not _expect(FileAccess.get_file_as_string(damaged_path) == "{damaged}", "Backup recovery must preserve the damaged source file for later inspection"):
 		return
-	main.return_to_title()
+	await main.return_to_title()
 	for save in saves.list_saves():
 		saves.delete_save(String(save.get("world_id", "")))
 	saves.set_active_world("")

@@ -113,7 +113,7 @@ func _run() -> void:
 	var hud := CanvasLayer.new()
 	hud.name = "HUD"
 	world.add_child(hud)
-	main.return_to_title()
+	await main.return_to_title()
 	if not _expect(title_menu.visible and not hud.visible and not main.game_started, "Returning to title must leave menu active before loading"):
 		return
 	if not _expect(not main.start_world_from_save({"save_format_version": 999, "seed": 7}), "Unsupported save must be rejected"):
