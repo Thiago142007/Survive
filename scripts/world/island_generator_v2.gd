@@ -175,9 +175,10 @@ func _stream(system: String, index: int) -> RandomNumberGenerator:
 	return rng
 
 func _field(descriptor: Dictionary, name: String, frequency: float) -> FastNoiseLite:
-	var key := "%s:%s" % [descriptor["id"], name]
-	if _fields.has(key):
-		return _fields[key]
+	var island_id: String = descriptor["id"]
+	var island_fields: Dictionary = _fields.get(island_id, {})
+	if island_fields.has(name):
+		return island_fields[name]
 	var noise := FastNoiseLite.new()
 	noise.seed = WORLD_SEED.derive(seed, name, int(descriptor["index"]))
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -185,7 +186,8 @@ func _field(descriptor: Dictionary, name: String, frequency: float) -> FastNoise
 	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	noise.fractal_octaves = 3
 	noise.fractal_gain = 0.5
-	_fields[key] = noise
+	island_fields[name] = noise
+	_fields[island_id] = island_fields
 	return noise
 
 func _coast_radius(descriptor: Dictionary, angle: float) -> float:
@@ -396,7 +398,12 @@ func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 			var d := c + 1
 			var center := Vector2((vertices[a].x + vertices[d].x) * 0.5, (vertices[a].z + vertices[d].z) * 0.5)
 			if not _inside_cave_opening(descriptor, center, step * 0.75):
-				indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
+				indices.append(a)
+				indices.append(b)
+				indices.append(c)
+				indices.append(b)
+				indices.append(d)
+				indices.append(c)
 				continue
 			# Only the cells around a cave need finer triangles. Their border vertices
 			# interpolate the original cell, so adjacent coarse cells stay connected.
@@ -422,7 +429,12 @@ func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 					var local_center := Vector2((vertices[local_a].x + vertices[local_d].x) * 0.5, (vertices[local_a].z + vertices[local_d].z) * 0.5)
 					if _inside_cave_opening(descriptor, local_center, step / float(subdivisions) * 0.72):
 						continue
-					indices.append_array(PackedInt32Array([local_a, local_b, local_c, local_b, local_d, local_c]))
+					indices.append(local_a)
+					indices.append(local_b)
+					indices.append(local_c)
+					indices.append(local_b)
+					indices.append(local_d)
+					indices.append(local_c)
 	var mesh := ArrayMesh.new()
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

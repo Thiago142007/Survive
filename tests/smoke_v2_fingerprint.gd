@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GENERATOR = preload("res://scripts/world/island_generator_v2.gd")
+const EXPECTED_FINGERPRINT := "39106f69ed120928de2de2ed7aa1e2d85160b16c4f69d0dcbdb5847aebbcc243"
 
 func _init() -> void:
 	call_deferred("_run")
@@ -24,7 +25,14 @@ func _run() -> void:
 	generator.call("_spawn_tropical_details", decoration, central)
 	var canopy: MultiMeshInstance3D = decoration.get_node("ForestCanopies")
 	record.append([canopy.multimesh.instance_count, canopy.multimesh.get_instance_transform(0)])
-	print("PROCEDURAL_V2_FINGERPRINT=", str(record).sha256_text())
+	var fingerprint := str(record).sha256_text()
+	print("PROCEDURAL_V2_FINGERPRINT=", fingerprint)
+	if fingerprint != EXPECTED_FINGERPRINT:
+		push_error("Version 2 layout, terrain samples or decoration changed unexpectedly")
+		decoration.free()
+		generator.free()
+		quit(1)
+		return
 	decoration.free()
 	generator.free()
 	quit()
