@@ -24,6 +24,7 @@ const DECORATION_LOD_BANDS := {
 
 @export_range(1, 4, 1) var max_distant_chunks_per_frame: int = 1
 @export var async_generation_enabled: bool = false
+@export var coastal_landmarks_enabled: bool = true
 var _decoration_quality := "high"
 @export_enum("low", "medium", "high") var decoration_quality: String:
 	get:
@@ -70,6 +71,9 @@ var _attachment_stage: Dictionary = {}
 
 func _init() -> void:
 	generation_version = GENERATION_VERSION
+
+func configure_coastal_landmarks(enabled: bool) -> void:
+	coastal_landmarks_enabled = enabled
 
 func apply_seed(new_seed: int) -> void:
 	_cancel_pending_builds()
@@ -352,6 +356,7 @@ func _make_descriptor(index: int, island_id: String, center: Vector3, radius: fl
 	var relief_rng := _stream("relief", index)
 	var lake_rng := _stream("lakes", index)
 	var mountain_rng := _stream("mountains", index)
+	var landmark_rng := _stream("coastal_landmarks", index)
 	var wildlife_rng := _stream("wildlife", index)
 	var lakes: Array[Dictionary] = []
 	var lake_count := 1 if index == 0 else lake_rng.randi_range(0, 2)
@@ -390,9 +395,38 @@ func _make_descriptor(index: int, island_id: String, center: Vector3, radius: fl
 	descriptor["predator_count"] = 0 if index == 0 else wildlife_rng.randi_range(0, 2)
 	descriptor["tree_count"] = maxi(6, roundi(radius / 17.0 * float(descriptor["forest_density"])))
 	descriptor["rock_count"] = maxi(5, roundi(radius / 35.0))
+	descriptor["landmark"] = {}
+	var landmark_type := ""
+	if coastal_landmarks_enabled:
+		if index == 0:
+			landmark_type = "sheltered_bay"
+		elif index == 1:
+			landmark_type = "rocky_headland"
+		elif landmark_rng.randf() < 0.42:
+			landmark_type = "sheltered_bay" if landmark_rng.randf() < 0.5 else "rocky_headland"
+	if landmark_type == "sheltered_bay":
+		descriptor["landmark"] = {"type": landmark_type, "angle": landmark_rng.randf_range(0.0, TAU), "width": landmark_rng.randf_range(0.27, 0.42), "strength": landmark_rng.randf_range(0.25, 0.34)}
+	elif landmark_type == "rocky_headland":
+		var headland_angle := _select_headland_angle(descriptor)
+		descriptor["landmark"] = {"type": landmark_type, "angle": headland_angle, "width": landmark_rng.randf_range(0.19, 0.28), "strength": landmark_rng.randf_range(0.15, 0.21)}
 	_cache_coast(descriptor)
 	descriptor["caves"] = _plan_caves(descriptor)
 	return descriptor
+
+func _select_headland_angle(descriptor: Dictionary) -> float:
+	var selected_angle := 0.0
+	var lowest_factor := INF
+	var radius := float(descriptor["radius"])
+	var aspect := float(descriptor["aspect"])
+	for highland in descriptor["highlands"]:
+		var angle: float = highland["center"].angle()
+		var rotated := angle - float(descriptor["orientation"])
+		var ellipse := 1.0 / sqrt(pow(cos(rotated) / aspect, 2.0) + pow(sin(rotated) * aspect, 2.0))
+		var factor := _coast_radius_raw(descriptor, angle) / (radius * ellipse)
+		if factor < lowest_factor:
+			lowest_factor = factor
+			selected_angle = angle
+	return selected_angle
 
 func _primary_biome(descriptor: Dictionary) -> String:
 	var temperature := float(descriptor["temperature"])
@@ -470,7 +504,16 @@ func _coast_radius_raw(descriptor: Dictionary, angle: float) -> float:
 	var radius := float(descriptor["radius"])
 	var shoreline := coast_noise.get_noise_2d(cos(angle) * radius, sin(angle) * radius)
 	var bays := _field(descriptor, "bays", 0.014).get_noise_2d(cos(angle) * radius, sin(angle) * radius)
-	return radius * ellipse * clampf(1.0 + 0.23 * shoreline + 0.085 * bays, 0.63, 1.38)
+	var coast_factor := clampf(1.0 + 0.23 * shoreline + 0.085 * bays, 0.63, 1.38)
+	var landmark: Dictionary = descriptor.get("landmark", {})
+	if not landmark.is_empty():
+		var delta := wrapf(angle - float(landmark["angle"]), -PI, PI)
+		var influence := exp(-pow(delta / float(landmark["width"]), 2.0))
+		if landmark["type"] == "sheltered_bay":
+			coast_factor = maxf(0.52, coast_factor - float(landmark["strength"]) * influence)
+		else:
+			coast_factor = minf(1.40, coast_factor + float(landmark["strength"]) * influence)
+	return radius * ellipse * coast_factor
 
 func _edge_distance(descriptor: Dictionary, point: Vector2) -> float:
 	if generation_version == 1:
@@ -513,6 +556,12 @@ func _terrain_height_from_edge(descriptor: Dictionary, point: Vector2, edge: flo
 		var distance := pow(rotated.x / (width * 2.0), 2.0) + pow(rotated.y / width, 2.0)
 		height += float(highland["height"]) * 1.5 * exp(-distance * 1.4)
 	height -= valleys * float(descriptor["relief"]) * 0.20 * ridge_mask
+	var landmark: Dictionary = descriptor.get("landmark", {})
+	if landmark.get("type", "") == "rocky_headland" and edge < 145.0:
+		var delta := wrapf(point.angle() - float(landmark["angle"]), -PI, PI)
+		if absf(delta) < float(landmark["width"]) * 2.0:
+			var cliff_band := smoothstep(12.0, 38.0, edge) * (1.0 - smoothstep(75.0, 145.0, edge))
+			height += 36.0 * exp(-pow(delta / float(landmark["width"]), 2.0)) * cliff_band
 	var beach_width := 26.0 + 16.0 * _field(descriptor, "beach", 0.008).get_noise_2d(point.x, point.y)
 	var cliff_field := _field(descriptor, "cliff_coast", 0.005).get_noise_2d(point.x, point.y)
 	beach_width = lerpf(beach_width, 7.0, smoothstep(0.35, 0.66, cliff_field))

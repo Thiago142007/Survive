@@ -13,35 +13,16 @@ func _run() -> void:
 		var generator = script_resource.new()
 		generator.seed = world_seed
 		generator.call("_rebuild_layout")
-		var descriptor: Dictionary = generator.get_world_layout_snapshot()[0]
-		var image := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
-		var aspect := float(descriptor["aspect"])
-		var extent := float(descriptor["radius"]) * maxf(aspect, 1.0 / aspect) * 1.48
-		for y in range(SIZE):
-			for x in range(SIZE):
-				var point := Vector2((float(x) / float(SIZE - 1) * 2.0 - 1.0) * extent, (float(y) / float(SIZE - 1) * 2.0 - 1.0) * extent)
-				var edge := float(generator.call("_edge_distance", descriptor, point))
-				var height := float(generator.call("_terrain_height_from_edge", descriptor, point, edge))
-				var color := Color("#17516e")
-				if height > -0.3:
-					var biome: String = generator.call("_biome_at", descriptor, point, height, edge, 0.2)
-					color = generator.call("_ground_color", biome, edge, 0.2)
-					color = color.lerp(Color("#d7d9ce"), clampf((height - 35.0) / 105.0, 0.0, 0.78))
-				image.set_pixel(x, y, color)
-		for cave in descriptor["caves"]:
-			var mouth: Vector2 = cave["mouth"]
-			var pixel := Vector2i(roundi((mouth.x / extent + 1.0) * 0.5 * float(SIZE - 1)), roundi((mouth.y / extent + 1.0) * 0.5 * float(SIZE - 1)))
-			for offset_y in range(-2, 3):
-				for offset_x in range(-2, 3):
-					var target := pixel + Vector2i(offset_x, offset_y)
-					if target.x >= 0 and target.x < SIZE and target.y >= 0 and target.y < SIZE:
-						image.set_pixelv(target, Color("#ef553b"))
+		var layout: Array[Dictionary] = generator.get_world_layout_snapshot()
+		var descriptor: Dictionary = layout[0]
 		var path := "%s/seed_%d.png" % [OUTPUT_DIRECTORY, world_seed]
-		assert(image.save_png(path) == OK)
+		_render_island_map(generator, descriptor, SIZE, path)
+		var headland_path := "%s/headland_%d.png" % [OUTPUT_DIRECTORY, world_seed]
+		_render_island_map(generator, layout[1], SIZE * 2, headland_path)
 		var overview := Image.create(512, 512, false, Image.FORMAT_RGBA8)
 		overview.fill(Color("#17516e"))
 		var world_extent := 6000.0
-		for island in generator.get_world_layout_snapshot():
+		for island in layout:
 			var center: Vector3 = island["center"]
 			var island_aspect := float(island["aspect"])
 			var reach := float(island["radius"]) * maxf(island_aspect, 1.0 / island_aspect) * 1.45
@@ -57,6 +38,31 @@ func _run() -> void:
 					overview.set_pixel(map_x, map_y, land_color)
 		var overview_path := "%s/archipelago_%d.png" % [OUTPUT_DIRECTORY, world_seed]
 		assert(overview.save_png(overview_path) == OK)
-		print("Rendered ", path, " and ", overview_path, " islands=", generator.get_world_layout_snapshot().size(), " caves=", descriptor["caves"].size())
+		print("Rendered ", path, ", ", headland_path, " and ", overview_path, " islands=", layout.size(), " caves=", descriptor["caves"].size())
 		generator.free()
 	quit()
+
+func _render_island_map(generator: Node3D, descriptor: Dictionary, size: int, path: String) -> void:
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var aspect := float(descriptor["aspect"])
+	var extent := float(descriptor["radius"]) * maxf(aspect, 1.0 / aspect) * 1.48
+	for y in range(size):
+		for x in range(size):
+			var point := Vector2((float(x) / float(size - 1) * 2.0 - 1.0) * extent, (float(y) / float(size - 1) * 2.0 - 1.0) * extent)
+			var edge := float(generator.call("_edge_distance", descriptor, point))
+			var height := float(generator.call("_terrain_height_from_edge", descriptor, point, edge))
+			var color := Color("#17516e")
+			if height > -0.3:
+				var biome: String = generator.call("_biome_at", descriptor, point, height, edge, 0.2)
+				color = generator.call("_ground_color", biome, edge, 0.2)
+				color = color.lerp(Color("#d7d9ce"), clampf((height - 35.0) / 105.0, 0.0, 0.78))
+			image.set_pixel(x, y, color)
+	for cave in descriptor["caves"]:
+		var mouth: Vector2 = cave["mouth"]
+		var pixel := Vector2i(roundi((mouth.x / extent + 1.0) * 0.5 * float(size - 1)), roundi((mouth.y / extent + 1.0) * 0.5 * float(size - 1)))
+		for offset_y in range(-2, 3):
+			for offset_x in range(-2, 3):
+				var target := pixel + Vector2i(offset_x, offset_y)
+				if target.x >= 0 and target.x < size and target.y >= 0 and target.y < size:
+					image.set_pixelv(target, Color("#ef553b"))
+	assert(image.save_png(path) == OK)

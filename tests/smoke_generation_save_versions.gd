@@ -23,6 +23,7 @@ func _run() -> void:
 		main.world_seed = 314159
 		main.world_generation_version = version
 		generator.generation_version = version
+		generator.coastal_landmarks_enabled = version == 2
 		generator.apply_seed(314159)
 		var snapshot: Dictionary = main.capture_save_snapshot()
 		assert(int(snapshot["world_generation_version"]) == version)
@@ -34,6 +35,18 @@ func _run() -> void:
 		assert(main.start_world_from_save(loaded["data"]))
 		assert(generator.generation_version == version)
 		assert(generator.get_world_layout_snapshot().size() >= 1)
+		if version == 2:
+			assert(snapshot["generation_config"].has("coastal_landmarks_enabled"), "Mundos novos devem registrar a geografia costeira no save")
+			assert(bool(snapshot["generation_config"]["coastal_landmarks_enabled"]))
+			var old_v2_save: Dictionary = loaded["data"].duplicate(true)
+			old_v2_save["generation_config"].erase("coastal_landmarks_enabled")
+			assert(main.start_world_from_save(old_v2_save))
+			assert(not bool(generator.get("coastal_landmarks_enabled")), "Saves v2 antigos devem manter a costa anterior")
+			assert(generator.get_world_layout_snapshot()[0]["landmark"].is_empty())
+			assert(main.start_new_world({"seed": 314159}))
+			assert(bool(generator.get("coastal_landmarks_enabled")), "Um mundo novo deve recuperar os marcos costeiros")
+			assert(main.start_world_from_save(loaded["data"]))
+			assert(bool(generator.get("coastal_landmarks_enabled")))
 		assert(saves.save_active_world())
 		assert(int(saves.read_save(world_id)["data"]["world_generation_version"]) == version, "Resalvar deve preservar a versao original")
 		main.game_started = false

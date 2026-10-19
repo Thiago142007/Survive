@@ -54,6 +54,8 @@ func start_new_world(config: Dictionary) -> bool:
 	if generator:
 		generator.set_world_active(false)
 		generator.generation_version = world_generation_version
+		if generator.has_method("configure_coastal_landmarks"):
+			generator.configure_coastal_landmarks(true)
 		generator.island_count = clampi(int(config.get("island_count", 12)), 1, 32)
 		generator.ring_distance = clampf(float(config.get("ring_distance", 3600.0)), 1000.0, 6000.0)
 		generator.chunk_size = clampf(float(config.get("chunk_size", 700.0)), 300.0, 1500.0)
@@ -134,7 +136,10 @@ func capture_save_snapshot() -> Dictionary:
 	var generator = world.get_node_or_null("IslandGenerator") if world else null
 	if generator:
 		snapshot["world_generation_version"] = generator.generation_version
-		snapshot["generation_config"] = {"island_count": generator.island_count, "ring_distance": generator.ring_distance, "chunk_size": generator.chunk_size}
+		var generation_config := {"island_count": generator.island_count, "ring_distance": generator.ring_distance, "chunk_size": generator.chunk_size}
+		if generator.has_method("configure_coastal_landmarks"):
+			generation_config["coastal_landmarks_enabled"] = generator.coastal_landmarks_enabled
+		snapshot["generation_config"] = generation_config
 		snapshot["world_state"] = generator.capture_persistent_state()
 	return snapshot
 
@@ -174,6 +179,8 @@ func start_world_from_save(snapshot: Dictionary) -> bool:
 		generator.set_world_active(false)
 		generator.generation_version = world_generation_version
 		var generation_config: Dictionary = snapshot.get("generation_config", {})
+		if generator.has_method("configure_coastal_landmarks"):
+			generator.configure_coastal_landmarks(world_generation_version == 2 and bool(generation_config.get("coastal_landmarks_enabled", false)))
 		generator.island_count = int(generation_config.get("island_count", 12))
 		generator.ring_distance = float(generation_config.get("ring_distance", 3600.0))
 		generator.chunk_size = float(generation_config.get("chunk_size", 700.0))
