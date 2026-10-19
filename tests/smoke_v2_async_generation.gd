@@ -16,9 +16,9 @@ func _run() -> void:
 	root.add_child(generator)
 	assert(generator.loaded_chunks.is_empty(), "A primeira ilha nao pode bloquear a entrada na cena")
 	var began := Time.get_ticks_msec()
-	while not generator.loaded_chunks.has(Vector2i.ZERO) and Time.get_ticks_msec() - began < 10000:
+	while not generator.is_spawn_ready() and Time.get_ticks_msec() - began < 10000:
 		await process_frame
-	assert(generator.loaded_chunks.has(Vector2i.ZERO), "A ilha central precisa terminar de carregar")
+	assert(generator.is_spawn_ready() and generator.loaded_chunks.has(Vector2i.ZERO), "A ilha central precisa terminar de carregar")
 	var central: Node3D = generator.loaded_chunks[Vector2i.ZERO]
 	assert(central.has_node("central/MeshInstance3D"))
 	assert(central.has_node("central/CollisionShape3D"))
@@ -58,9 +58,9 @@ func _run() -> void:
 	assert(int(changed.get_generation_diagnostics()["background_jobs_active"]) == 1)
 	changed.apply_seed(67890)
 	var changed_at := Time.get_ticks_msec()
-	while not changed.loaded_chunks.has(Vector2i.ZERO) and Time.get_ticks_msec() - changed_at < 10000:
+	while not changed.is_spawn_ready() and Time.get_ticks_msec() - changed_at < 10000:
 		await process_frame
-	assert(changed.loaded_chunks.has(Vector2i.ZERO), "A nova seed precisa carregar")
+	assert(changed.is_spawn_ready() and changed.loaded_chunks.has(Vector2i.ZERO), "A nova seed precisa carregar")
 	assert(changed.seed == 67890)
 	assert(int(changed.loaded_chunks[Vector2i.ZERO].get_node("central").get_meta("relief")) == int(changed.island_descriptors[0]["relief"]))
 	assert(int(changed.get_generation_diagnostics()["background_jobs_completed"]) == 1, "Um resultado antigo nao pode entrar no mundo novo")
@@ -81,7 +81,7 @@ func _run() -> void:
 	remote.set_world_active(true)
 	assert(not remote.is_spawn_ready(), "Carregar um save distante precisa aguardar sua ilha")
 	var remote_started := Time.get_ticks_msec()
-	while not remote.loaded_chunks.has(destination["chunk"]) and Time.get_ticks_msec() - remote_started < 10000:
+	while not remote.is_spawn_ready() and Time.get_ticks_msec() - remote_started < 10000:
 		await process_frame
 	assert(remote.loaded_chunks.has(destination["chunk"]))
 	assert(remote.is_spawn_ready(), "O spawn distante deve liberar o jogador sem carregar a ilha central")

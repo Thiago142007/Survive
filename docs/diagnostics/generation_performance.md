@@ -53,3 +53,15 @@ Three fresh Godot 4.3 headless processes per mode measured seed `12345` with `SU
 | Background sampling | 816, 814, 814 | 120.6, 120.0, 118.8 | 28, 29, 29 |
 
 The background worker spent about 625–627 ms sampling terrain and decoration. Main-thread attachment still took 93–94 ms, including collision creation (about 60 ms) and gameplay node creation. This substantially reduces the single-frame stall but does not yet meet a smooth-frame target. The headless process-frame interval is a CPU scheduling observation, not representative graphical FPS or GPU frame time. The total time until the initial island is ready is essentially unchanged. The game still needs graphical profiling, and collision/resource attachment needs another reduction pass.
+
+## Staged main-thread attachment
+
+Version 2 now attaches a background result across three frames: first the terrain mesh and decorative MultiMeshes, then the unchanged terrain collision shape, then collectible resources and animals. Player physics remains gated until all three stages finish. Cached islands with a complete terrain/collision/details entry still reload immediately. A seed change, unload or deactivation removes unfinished attachment work. Existing version 1 saves continue through the synchronous path.
+
+Three fresh Godot 4.3 headless processes measured seed `12345` with `SURVIVE_ASYNC_GENERATION=1` after this stage:
+
+| Initial load wall time (ms) | Largest observed process-frame interval (ms) | Mesh/decor attachment (ms) | Collision stage (ms) | Resource/animal stage (ms) | Cache reload (ms) |
+| --- | --- | --- | --- | --- | --- |
+| 821, 815, 807 | 60.8, 61.6, 61.1 | 4, 4, 4 | 61, 61, 60 | 28, 28, 28 | 28, 28, 28 |
+
+The largest observed interval is now the terrain collision stage. The underlying collision geometry is unchanged, so this stage addresses scheduling rather than collision fidelity. A roughly 61 ms headless frame is still too long for a smooth 60 FPS target. Graphical FPS, draw calls and frame pacing remain unmeasured.

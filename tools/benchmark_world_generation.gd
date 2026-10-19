@@ -26,12 +26,12 @@ func _run() -> void:
 	root.add_child(generator)
 	var max_frame_ms := 0.0
 	var frame_count := 0
-	while not generator.loaded_chunks.has(Vector2i.ZERO) and Time.get_ticks_msec() - started < 15000:
+	while (not generator.loaded_chunks.has(Vector2i.ZERO) or (async_mode and not generator.is_spawn_ready())) and Time.get_ticks_msec() - started < 15000:
 		var frame_started := Time.get_ticks_usec()
 		await process_frame
 		max_frame_ms = maxf(max_frame_ms, float(Time.get_ticks_usec() - frame_started) / 1000.0)
 		frame_count += 1
-	assert(generator.loaded_chunks.has(Vector2i.ZERO), "Initial island generation exceeded 15 seconds")
+	assert(generator.loaded_chunks.has(Vector2i.ZERO) and (not async_mode or generator.is_spawn_ready()), "Initial island generation exceeded 15 seconds")
 	var load_wall_ms := Time.get_ticks_msec() - started
 	var loaded_bytes := OS.get_static_memory_usage()
 	var diagnostics: Dictionary = generator.get_generation_diagnostics()

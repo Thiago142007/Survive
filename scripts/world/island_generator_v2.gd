@@ -56,8 +56,13 @@ var _active_build_epoch := 0
 var _background_jobs_completed := 0
 var _background_sampling_msec := 0
 var _last_background_attach_msec := 0
+var _last_background_collision_msec := 0
+var _last_background_entities_msec := 0
 var _spawn_island_ready := false
 var _spawn_target_chunk := Vector2i.ZERO
+var _attaching_background := false
+var _pending_attachment_chunks: Array[Vector2i] = []
+var _attachment_stage: Dictionary = {}
 
 func _init() -> void:
 	generation_version = GENERATION_VERSION
@@ -153,6 +158,9 @@ func _spawn_chunk_for_focus() -> Vector2i:
 func _cancel_pending_builds() -> void:
 	_build_epoch += 1
 	_spawn_island_ready = false
+	_attaching_background = false
+	_pending_attachment_chunks.clear()
+	_attachment_stage.clear()
 	_build_queue.clear()
 	_wanted_chunks.clear()
 	_prepared_terrain_arrays.clear()
@@ -160,8 +168,13 @@ func _cancel_pending_builds() -> void:
 
 func _load_chunk(chunk_key: Vector2i) -> void:
 	super._load_chunk(chunk_key)
-	if generation_version == GENERATION_VERSION and chunk_key == _spawn_target_chunk and loaded_chunks.has(chunk_key):
+	if not _attaching_background and generation_version == GENERATION_VERSION and chunk_key == _spawn_target_chunk and loaded_chunks.has(chunk_key):
 		_spawn_island_ready = true
+
+func _unload_chunk(chunk_key: Vector2i) -> void:
+	_pending_attachment_chunks.erase(chunk_key)
+	_attachment_stage.erase(chunk_key)
+	super._unload_chunk(chunk_key)
 
 func _request_chunk(chunk_key: Vector2i) -> void:
 	if loaded_chunks.has(chunk_key) or _build_queue.has(chunk_key) or (_building_chunk == chunk_key and _active_build_epoch == _build_epoch):
@@ -175,7 +188,7 @@ func _request_chunk(chunk_key: Vector2i) -> void:
 		_load_chunk(chunk_key)
 		return
 	var cached: Dictionary = _island_cache.get(String(descriptor["id"]), {})
-	if cached.has("terrain") and cached.has("details"):
+	if cached.has("terrain") and cached.has("details") and cached.has("collision"):
 		_load_chunk(chunk_key)
 		return
 	_build_queue.append(chunk_key)
@@ -230,13 +243,53 @@ func _poll_background_build() -> void:
 			_prepared_detail_transforms[island_id] = result["details"]
 			_phase_msec["terrain"] += int(result["terrain_ms"])
 			_phase_msec["decoration"] += int(result["decoration_ms"])
+			_attaching_background = true
 			_load_chunk(completed_chunk)
+			_attaching_background = false
+			_pending_attachment_chunks.append(completed_chunk)
+			_attachment_stage[completed_chunk] = 1
 			_prepared_terrain_arrays.erase(island_id)
 			_prepared_detail_transforms.erase(island_id)
 			_last_background_attach_msec = Time.get_ticks_msec() - attach_started
 			_background_sampling_msec += int(result["terrain_ms"]) + int(result["decoration_ms"])
 			_background_jobs_completed += 1
 	_start_next_build()
+
+func _process_attachment_stage() -> bool:
+	if _pending_attachment_chunks.is_empty():
+		return false
+	var chunk_key := _pending_attachment_chunks[0]
+	if not loaded_chunks.has(chunk_key):
+		_pending_attachment_chunks.pop_front()
+		_attachment_stage.erase(chunk_key)
+		return false
+	var chunk: Node3D = loaded_chunks[chunk_key]
+	var started := Time.get_ticks_msec()
+	if int(_attachment_stage[chunk_key]) == 1:
+		for descriptor in island_descriptors:
+			if descriptor["chunk"] != chunk_key:
+				continue
+			var island: StaticBody3D = chunk.get_node(String(descriptor["id"]))
+			var mesh: Mesh = island.get_node("MeshInstance3D").mesh
+			var collision: CollisionShape3D = island.get_node("CollisionShape3D")
+			collision.shape = _make_terrain_collision_shape(mesh, descriptor)
+		_attachment_stage[chunk_key] = 2
+		_last_background_collision_msec = Time.get_ticks_msec() - started
+		_generation_msec += _last_background_collision_msec
+	else:
+		for descriptor in island_descriptors:
+			if descriptor["chunk"] != chunk_key:
+				continue
+			_spawn_resources(chunk, descriptor)
+			_spawn_fauna(chunk, descriptor)
+		_spawn_migrated_animals(chunk_key, chunk)
+		if chunk_key == _spawn_target_chunk:
+			_spawn_island_ready = true
+		_pending_attachment_chunks.pop_front()
+		_attachment_stage.erase(chunk_key)
+		_last_background_entities_msec = Time.get_ticks_msec() - started
+		_generation_msec += _last_background_entities_msec
+	return true
 
 func is_spawn_ready() -> bool:
 	return not async_generation_enabled or generation_version != GENERATION_VERSION or _spawn_island_ready
@@ -617,6 +670,8 @@ func _build_terrain_arrays(descriptor: Dictionary) -> Array:
 func _make_terrain_collision_shape(mesh: Mesh, descriptor: Dictionary) -> Shape3D:
 	if generation_version == 1:
 		return super._make_terrain_collision_shape(mesh, descriptor)
+	if _attaching_background:
+		return null
 	var cache_key := String(descriptor["id"])
 	var cached: Dictionary = _island_cache.get(cache_key, {})
 	if cached.has("collision"):
@@ -790,6 +845,8 @@ func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
 	if generation_version == 1:
 		super._spawn_resources(chunk, descriptor)
 		return
+	if _attaching_background:
+		return
 	var started := Time.get_ticks_msec()
 	var tree_scene: PackedScene = load(RESOURCE_SCENE_PATHS["tree"])
 	var rock_scene: PackedScene = load(RESOURCE_SCENE_PATHS["rock"])
@@ -829,6 +886,14 @@ func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
 		chunk.add_child(rock)
 		_apply_saved_object_state(rock, "resources", rock_id)
 	_phase_msec["resources"] += Time.get_ticks_msec() - started
+
+func _spawn_fauna(chunk: Node3D, descriptor: Dictionary) -> void:
+	if not _attaching_background:
+		super._spawn_fauna(chunk, descriptor)
+
+func _spawn_migrated_animals(chunk_key: Vector2i, chunk: Node3D) -> void:
+	if not _attaching_background:
+		super._spawn_migrated_animals(chunk_key, chunk)
 
 func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 	if generation_version == 1:
@@ -1083,7 +1148,8 @@ func _process(_delta: float) -> void:
 		_poll_background_build()
 		return
 	_refresh_streaming()
-	_poll_background_build()
+	if not _process_attachment_stage():
+		_poll_background_build()
 	if generation_version == 1:
 		return
 	for _index in range(maxi(1, max_distant_chunks_per_frame)):
@@ -1135,4 +1201,4 @@ func get_generation_diagnostics() -> Dictionary:
 				for child in node.get_children():
 					if child.name.begins_with("Cave_"):
 						counts["caves"] += 1
-	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "pending_chunks": _pending_chunks.size(), "background_jobs_active": 1 if _build_thread != null else 0, "background_jobs_queued": _build_queue.size(), "background_jobs_completed": _background_jobs_completed, "background_sampling_ms": _background_sampling_msec, "last_background_attach_ms": _last_background_attach_msec, "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
+	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "pending_chunks": _pending_chunks.size(), "attachment_chunks_pending": _pending_attachment_chunks.size(), "background_jobs_active": 1 if _build_thread != null else 0, "background_jobs_queued": _build_queue.size(), "background_jobs_completed": _background_jobs_completed, "background_sampling_ms": _background_sampling_msec, "last_background_attach_ms": _last_background_attach_msec, "last_background_collision_ms": _last_background_collision_msec, "last_background_entities_ms": _last_background_entities_msec, "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
