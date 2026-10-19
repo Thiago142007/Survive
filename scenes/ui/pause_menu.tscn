@@ -36,9 +36,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -220.0
-offset_top = -178.0
+offset_top = -235.0
 offset_right = 220.0
-offset_bottom = 178.0
+offset_bottom = 235.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("PausePanel")
@@ -50,36 +50,106 @@ theme_override_constants/margin_top = 22
 theme_override_constants/margin_right = 26
 theme_override_constants/margin_bottom = 22
 
-[node name="Actions" type="VBoxContainer" parent="Panel/Margin"]
+[node name="Content" type="VBoxContainer" parent="Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="Panel/Margin/Actions"]
+[node name="Actions" type="VBoxContainer" parent="Panel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Panel/Margin/Content/Actions"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.81, 0.71, 1)
 theme_override_font_sizes/font_size = 27
 text = "PAUSADO"
 horizontal_alignment = 1
 
-[node name="ContinueButton" type="Button" parent="Panel/Margin/Actions"]
+[node name="ContinueButton" type="Button" parent="Panel/Margin/Content/Actions"]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 text = "Continuar"
 focus_mode = 2
 
-[node name="SaveButton" type="Button" parent="Panel/Margin/Actions"]
+[node name="SettingsButton" type="Button" parent="Panel/Margin/Content/Actions"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Configurações"
+focus_mode = 2
+
+[node name="SaveButton" type="Button" parent="Panel/Margin/Content/Actions"]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 text = "Salvar agora"
 focus_mode = 2
 
-[node name="TitleButton" type="Button" parent="Panel/Margin/Actions"]
+[node name="TitleButton" type="Button" parent="Panel/Margin/Content/Actions"]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 text = "Voltar ao menu"
 focus_mode = 2
 
-[node name="Status" type="Label" parent="Panel/Margin/Actions"]
+[node name="SettingsPanel" type="VBoxContainer" parent="Panel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+visible = false
+
+[node name="SettingsTitle" type="Label" parent="Panel/Margin/Content/SettingsPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.81, 0.71, 1)
+theme_override_font_sizes/font_size = 24
+text = "CONFIGURAÇÕES"
+horizontal_alignment = 1
+
+[node name="VolumeLabel" type="Label" parent="Panel/Margin/Content/SettingsPanel"]
+layout_mode = 2
+text = "Volume geral"
+
+[node name="VolumeSlider" type="HSlider" parent="Panel/Margin/Content/SettingsPanel"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+focus_mode = 2
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+
+[node name="WindowModeLabel" type="Label" parent="Panel/Margin/Content/SettingsPanel"]
+layout_mode = 2
+text = "Modo de janela"
+
+[node name="WindowModeOption" type="OptionButton" parent="Panel/Margin/Content/SettingsPanel"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+focus_mode = 2
+
+[node name="ResolutionLabel" type="Label" parent="Panel/Margin/Content/SettingsPanel"]
+layout_mode = 2
+text = "Resolução"
+
+[node name="ResolutionOption" type="OptionButton" parent="Panel/Margin/Content/SettingsPanel"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+focus_mode = 2
+
+[node name="SettingsActions" type="HBoxContainer" parent="Panel/Margin/Content/SettingsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ApplyButton" type="Button" parent="Panel/Margin/Content/SettingsPanel/SettingsActions"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Aplicar e salvar"
+focus_mode = 2
+
+[node name="BackButton" type="Button" parent="Panel/Margin/Content/SettingsPanel/SettingsActions"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Voltar"
+focus_mode = 2
+
+[node name="Status" type="Label" parent="Panel/Margin/Content"]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.65, 0.51, 1)
@@ -87,6 +157,9 @@ autowrap_mode = 2
 horizontal_alignment = 1
 text = ""
 
-[connection signal="pressed" from="Panel/Margin/Actions/ContinueButton" to="." method="continue_game"]
-[connection signal="pressed" from="Panel/Margin/Actions/SaveButton" to="." method="save_now"]
-[connection signal="pressed" from="Panel/Margin/Actions/TitleButton" to="." method="return_to_title"]
+[connection signal="pressed" from="Panel/Margin/Content/Actions/ContinueButton" to="." method="continue_game"]
+[connection signal="pressed" from="Panel/Margin/Content/Actions/SettingsButton" to="." method="_on_settings_pressed"]
+[connection signal="pressed" from="Panel/Margin/Content/Actions/SaveButton" to="." method="save_now"]
+[connection signal="pressed" from="Panel/Margin/Content/Actions/TitleButton" to="." method="return_to_title"]
+[connection signal="pressed" from="Panel/Margin/Content/SettingsPanel/SettingsActions/ApplyButton" to="." method="_on_settings_apply_pressed"]
+[connection signal="pressed" from="Panel/Margin/Content/SettingsPanel/SettingsActions/BackButton" to="." method="_on_settings_back_pressed"]

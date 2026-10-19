@@ -29,7 +29,7 @@ window/size/content_scale_factor=0.7
 
 toggle_camera={
 "deadzone": 0.5,
-"events": [Object(InputEventKey,"physical_keycode":86,"resource_local_to_scene":false,"resource_name":"","script":null)
+"events": [Object(InputEventKey,"physical_keycode":4194336,"resource_local_to_scene":false,"resource_name":"","script":null)
 ]
 }
 move_forward={

@@ -14,6 +14,8 @@ func _run() -> void:
 	var pause_menu := world.get_node_or_null("PauseMenu")
 	if not _expect(pause_menu != null and pause_menu.has_method("open_pause"), "Gameplay must include an interactive pause overlay"):
 		return
+	if not _expect(pause_menu.has_method("open_settings"), "Pause menu must expose in-game settings"):
+		return
 	var main := root.get_node("Main")
 	assert(not auto_accept_quit, "Main must intercept native close requests until its asynchronous save finishes")
 	var saves := root.get_node("SaveManager")
@@ -27,6 +29,32 @@ func _run() -> void:
 	var player: Node = main.player
 	var inventory_ui := world.get_node("InventoryUI")
 	paused = false
+	pause_menu.open_pause()
+	var settings_manager := root.get_node("SettingsManager")
+	var original_settings_path: String = settings_manager.settings_path
+	settings_manager.settings_path = "user://smoke_pause_settings.cfg"
+	pause_menu.settings_button.pressed.emit()
+	if not _expect(pause_menu.settings_panel.visible and not pause_menu.actions.visible and paused, "Pause settings must replace pause actions without resuming the world"):
+		return
+	pause_menu.settings_volume.value = 0.42
+	pause_menu.settings_mode.select(1)
+	pause_menu.settings_resolution.select(1)
+	pause_menu.get_node("Panel/Margin/Content/SettingsPanel/SettingsActions/ApplyButton").pressed.emit()
+	var persisted_settings: Dictionary = settings_manager.load_settings()
+	if not _expect(is_equal_approx(float(persisted_settings["master_volume"]), 0.42) and persisted_settings["window_mode"] == "borderless" and persisted_settings["resolution"] == "1280x800", "Pause settings must apply and persist audio and display changes"):
+		return
+	if not _expect(pause_menu.actions.visible and not pause_menu.settings_panel.visible and paused, "Applying settings must return to pause actions without resuming"):
+		return
+	pause_menu.open_settings()
+	var settings_cancel := InputEventAction.new()
+	settings_cancel.action = "ui_cancel"
+	settings_cancel.pressed = true
+	pause_menu._unhandled_input(settings_cancel)
+	if not _expect(pause_menu.actions.visible and not pause_menu.settings_panel.visible and paused, "Back from settings must return to the still-paused game"):
+		return
+	settings_manager.settings_path = original_settings_path
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://smoke_pause_settings.cfg"))
+	pause_menu.continue_game()
 	var pause_event := InputEventAction.new()
 	pause_event.action = "ui_cancel"
 	pause_event.pressed = true
