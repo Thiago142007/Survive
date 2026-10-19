@@ -30,6 +30,12 @@ func _run() -> void:
 				var terrain: Mesh = island.get_node("MeshInstance3D").mesh
 				if terrain is ArrayMesh:
 					terrain_triangles += terrain.surface_get_arrays(0)[Mesh.ARRAY_INDEX].size() / 3
+	generator.call("_unload_chunk", Vector2i.ZERO)
+	var reload_started := Time.get_ticks_msec()
+	generator.call("_load_chunk", Vector2i.ZERO)
+	var reload_wall_ms := Time.get_ticks_msec() - reload_started
+	var reloaded_bytes := OS.get_static_memory_usage()
+	var reloaded_diagnostics: Dictionary = generator.get_generation_diagnostics()
 	generator.free()
 	await process_frame
 	var unloaded_bytes := OS.get_static_memory_usage()
@@ -37,10 +43,13 @@ func _run() -> void:
 		"seed": seed_value,
 		"version": version,
 		"load_wall_ms": load_wall_ms,
+		"reload_wall_ms": reload_wall_ms,
 		"diagnostics": diagnostics,
+		"reloaded_cache_hits": reloaded_diagnostics["cache_hits"],
 		"terrain_triangles": terrain_triangles,
 		"process_memory_before_bytes": before_bytes,
 		"process_memory_loaded_bytes": loaded_bytes,
+		"process_memory_reloaded_bytes": reloaded_bytes,
 		"process_memory_delta_bytes": loaded_bytes - before_bytes,
 		"process_memory_unloaded_bytes": unloaded_bytes
 	}))

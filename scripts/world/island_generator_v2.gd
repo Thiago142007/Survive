@@ -7,11 +7,15 @@ const GENERATION_VERSION := 2
 const FOREST_CANDIDATES := 820
 const GROUND_CANDIDATES := 1250
 const ROCK_CANDIDATES := 150
+const CACHED_ISLAND_LIMIT := 2
 
 var _fields: Dictionary = {}
 var _coast_cache: Dictionary = {}
 var _generation_msec: int = 0
 var _phase_msec: Dictionary = {"terrain": 0, "resources": 0, "decoration": 0, "caves": 0}
+var _island_cache: Dictionary = {}
+var _cache_order: Array[String] = []
+var _cache_hits: Dictionary = {"terrain": 0, "details": 0}
 
 func _init() -> void:
 	generation_version = GENERATION_VERSION
@@ -24,6 +28,9 @@ func apply_seed(new_seed: int) -> void:
 	super.apply_seed(new_seed)
 
 func _rebuild_layout() -> void:
+	_island_cache.clear()
+	_cache_order.clear()
+	_cache_hits = {"terrain": 0, "details": 0}
 	if generation_version == 1:
 		super._rebuild_layout()
 		return
@@ -342,6 +349,12 @@ func _inside_cave_opening(descriptor: Dictionary, point: Vector2, padding: float
 func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 	if generation_version == 1:
 		return super._make_terrain_mesh(descriptor)
+	var cache_key := String(descriptor["id"])
+	var cached: Dictionary = _island_cache.get(cache_key, {})
+	if cached.has("terrain"):
+		_cache_hits["terrain"] += 1
+		_touch_cached_island(cache_key)
+		return cached["terrain"]
 	var started := Time.get_ticks_msec()
 	var aspect := float(descriptor["aspect"])
 	var extent := float(descriptor["radius"]) * maxf(aspect, 1.0 / aspect) * 1.42 + 45.0
@@ -420,8 +433,21 @@ func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(0, _make_terrain_material())
+	_remember_island_resource(cache_key, "terrain", mesh)
 	_phase_msec["terrain"] += Time.get_ticks_msec() - started
 	return mesh
+
+func _touch_cached_island(cache_key: String) -> void:
+	_cache_order.erase(cache_key)
+	_cache_order.append(cache_key)
+
+func _remember_island_resource(cache_key: String, resource_name: String, value: Variant) -> void:
+	var entry: Dictionary = _island_cache.get(cache_key, {})
+	entry[resource_name] = value
+	_island_cache[cache_key] = entry
+	_touch_cached_island(cache_key)
+	while _cache_order.size() > CACHED_ISLAND_LIMIT:
+		_island_cache.erase(_cache_order.pop_front())
 
 func _ground_color(biome: String, edge: float, slope: float) -> Color:
 	var color: Color
@@ -616,6 +642,19 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 	if generation_version == 1:
 		super._spawn_tropical_details(chunk, descriptor)
 		return
+	var cache_key := String(descriptor["id"])
+	var cached: Dictionary = _island_cache.get(cache_key, {})
+	if cached.has("details"):
+		var details: Dictionary = cached["details"]
+		for label in details:
+			var visual := MultiMeshInstance3D.new()
+			visual.name = label
+			visual.multimesh = details[label]["multimesh"]
+			visual.material_override = details[label]["material"]
+			chunk.add_child(visual)
+		_cache_hits["details"] += 1
+		_touch_cached_island(cache_key)
+		return
 	var started := Time.get_ticks_msec()
 	var forest_rng := _stream("forest_instances", int(descriptor["index"]))
 	var ground_rng := _stream("ground_instances", int(descriptor["index"]))
@@ -688,6 +727,12 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 	_add_instances(chunk, "ForestCanopies", canopy_mesh, Color("#315f38"), canopies)
 	_add_instances(chunk, "GroundCover", shrub_mesh, Color("#597746"), ground)
 	_add_instances(chunk, "StoneCover", rock_mesh, Color("#757b78"), rocks)
+	var details := {}
+	for label in ["ForestTrunks", "ForestCanopies", "GroundCover", "StoneCover"]:
+		var visual: MultiMeshInstance3D = chunk.get_node_or_null(label)
+		if visual:
+			details[label] = {"multimesh": visual.multimesh, "material": visual.material_override}
+	_remember_island_resource(cache_key, "details", details)
 	_phase_msec["decoration"] += Time.get_ticks_msec() - started
 
 func _vegetation_density(descriptor: Dictionary, point: Vector2, biome: String) -> float:
@@ -766,4 +811,4 @@ func get_generation_diagnostics() -> Dictionary:
 				for child in node.get_children():
 					if child.name.begins_with("Cave_"):
 						counts["caves"] += 1
-	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "instances": counts, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate()}
+	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "instances": counts, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
