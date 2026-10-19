@@ -9,6 +9,7 @@ const FOREST_CANDIDATES := 820
 const GROUND_CANDIDATES := 1250
 const ROCK_CANDIDATES := 150
 const CACHED_ISLAND_LIMIT := 2
+const COLLISION_PART_COUNT := 4
 const DECORATION_QUALITY_SCALE := {
 	"low": {"ForestTrunks": 0.5, "ForestCanopies": 0.5, "GroundCover": 0.35, "StoneCover": 0.55},
 	"medium": {"ForestTrunks": 0.8, "ForestCanopies": 0.8, "GroundCover": 0.65, "StoneCover": 0.8},
@@ -46,6 +47,7 @@ var _last_stream_focus := Vector3.INF
 var _last_lod_focus := Vector3.INF
 var _prepared_terrain_arrays: Dictionary = {}
 var _prepared_collision_faces: Dictionary = {}
+var _pending_collision_parts: Dictionary = {}
 var _prepared_detail_transforms: Dictionary = {}
 var _wanted_chunks: Dictionary = {}
 var _build_queue: Array[Vector2i] = []
@@ -58,6 +60,7 @@ var _background_jobs_completed := 0
 var _background_sampling_msec := 0
 var _last_background_attach_msec := 0
 var _last_background_collision_msec := 0
+var _max_background_collision_piece_msec := 0
 var _last_background_entities_msec := 0
 var _spawn_island_ready := false
 var _spawn_target_chunk := Vector2i.ZERO
@@ -166,6 +169,7 @@ func _cancel_pending_builds() -> void:
 	_wanted_chunks.clear()
 	_prepared_terrain_arrays.clear()
 	_prepared_collision_faces.clear()
+	_pending_collision_parts.clear()
 	_prepared_detail_transforms.clear()
 
 func _load_chunk(chunk_key: Vector2i) -> void:
@@ -178,7 +182,9 @@ func _unload_chunk(chunk_key: Vector2i) -> void:
 	_attachment_stage.erase(chunk_key)
 	for descriptor in island_descriptors:
 		if descriptor["chunk"] == chunk_key:
-			_prepared_collision_faces.erase(String(descriptor["id"]))
+			var island_id := String(descriptor["id"])
+			_prepared_collision_faces.erase(island_id)
+			_pending_collision_parts.erase(island_id)
 	super._unload_chunk(chunk_key)
 
 func _request_chunk(chunk_key: Vector2i) -> void:
@@ -258,6 +264,8 @@ func _poll_background_build() -> void:
 			_prepared_terrain_arrays.erase(island_id)
 			_prepared_detail_transforms.erase(island_id)
 			_last_background_attach_msec = Time.get_ticks_msec() - attach_started
+			_last_background_collision_msec = 0
+			_max_background_collision_piece_msec = 0
 			_background_sampling_msec += int(result["terrain_ms"]) + int(result["collision_ms"]) + int(result["decoration_ms"])
 			_background_jobs_completed += 1
 	_start_next_build()
@@ -272,18 +280,44 @@ func _process_attachment_stage() -> bool:
 		return false
 	var chunk: Node3D = loaded_chunks[chunk_key]
 	var started := Time.get_ticks_msec()
-	if int(_attachment_stage[chunk_key]) == 1:
+	var stage := int(_attachment_stage[chunk_key])
+	if stage <= COLLISION_PART_COUNT:
+		var part_index := stage - 1
 		for descriptor in island_descriptors:
 			if descriptor["chunk"] != chunk_key:
 				continue
 			var island: StaticBody3D = chunk.get_node(String(descriptor["id"]))
-			var mesh: Mesh = island.get_node("MeshInstance3D").mesh
-			var collision: CollisionShape3D = island.get_node("CollisionShape3D")
-			collision.shape = _make_terrain_collision_shape(mesh, descriptor)
-			_prepared_collision_faces.erase(String(descriptor["id"]))
-		_attachment_stage[chunk_key] = 2
-		_last_background_collision_msec = Time.get_ticks_msec() - started
-		_generation_msec += _last_background_collision_msec
+			var island_id := String(descriptor["id"])
+			if not _prepared_collision_faces.has(island_id):
+				if part_index == 0:
+					var mesh: Mesh = island.get_node("MeshInstance3D").mesh
+					island.get_node("CollisionShape3D").shape = _make_terrain_collision_shape(mesh, descriptor)
+				continue
+			var faces: PackedVector3Array = _prepared_collision_faces[island_id]
+			var triangle_count := faces.size() / 3
+			var first := (part_index * triangle_count / COLLISION_PART_COUNT) * 3
+			var last := ((part_index + 1) * triangle_count / COLLISION_PART_COUNT) * 3
+			var shape := ConcavePolygonShape3D.new()
+			shape.set_faces(faces.slice(first, last))
+			var parts: Array = _pending_collision_parts.get(island_id, [])
+			parts.append(shape)
+			_pending_collision_parts[island_id] = parts
+			if part_index == 0:
+				island.get_node("CollisionShape3D").shape = shape
+			else:
+				var collision := CollisionShape3D.new()
+				collision.name = "CollisionShape3D_%d" % part_index
+				collision.shape = shape
+				island.add_child(collision)
+			if part_index == COLLISION_PART_COUNT - 1:
+				_remember_island_resource(island_id, "collision", parts.duplicate())
+				_prepared_collision_faces.erase(island_id)
+				_pending_collision_parts.erase(island_id)
+		_attachment_stage[chunk_key] = stage + 1
+		var elapsed := Time.get_ticks_msec() - started
+		_last_background_collision_msec += elapsed
+		_max_background_collision_piece_msec = maxi(_max_background_collision_piece_msec, elapsed)
+		_generation_msec += elapsed
 	else:
 		for descriptor in island_descriptors:
 			if descriptor["chunk"] != chunk_key:
@@ -685,15 +719,10 @@ func _make_terrain_collision_shape(mesh: Mesh, descriptor: Dictionary) -> Shape3
 	if cached.has("collision"):
 		_cache_hits["collision"] += 1
 		_touch_cached_island(cache_key)
-		return cached["collision"]
+		var collision: Variant = cached["collision"]
+		return collision[0] if collision is Array else collision
 	var started := Time.get_ticks_msec()
-	var shape: Shape3D
-	if _prepared_collision_faces.has(cache_key):
-		var concave := ConcavePolygonShape3D.new()
-		concave.set_faces(_prepared_collision_faces[cache_key])
-		shape = concave
-	else:
-		shape = mesh.create_trimesh_shape()
+	var shape: Shape3D = mesh.create_trimesh_shape()
 	_remember_island_resource(cache_key, "collision", shape)
 	_phase_msec["collision"] += Time.get_ticks_msec() - started
 	return shape
@@ -731,6 +760,14 @@ func _create_island(chunk: Node3D, descriptor: Dictionary) -> void:
 	var started := Time.get_ticks_msec()
 	super._create_island(chunk, descriptor)
 	var island: StaticBody3D = chunk.get_node(String(descriptor["id"]))
+	var cached: Dictionary = _island_cache.get(String(descriptor["id"]), {})
+	var cached_collision: Variant = cached.get("collision")
+	if not _attaching_background and cached_collision is Array:
+		for part_index in range(1, cached_collision.size()):
+			var collision := CollisionShape3D.new()
+			collision.name = "CollisionShape3D_%d" % part_index
+			collision.shape = cached_collision[part_index]
+			island.add_child(collision)
 	for cave_index in range(descriptor["caves"].size()):
 		_add_cave(island, descriptor, descriptor["caves"][cave_index], cave_index)
 	_generation_msec += Time.get_ticks_msec() - started
@@ -1215,4 +1252,4 @@ func get_generation_diagnostics() -> Dictionary:
 				for child in node.get_children():
 					if child.name.begins_with("Cave_"):
 						counts["caves"] += 1
-	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "pending_chunks": _pending_chunks.size(), "attachment_chunks_pending": _pending_attachment_chunks.size(), "background_jobs_active": 1 if _build_thread != null else 0, "background_jobs_queued": _build_queue.size(), "background_jobs_completed": _background_jobs_completed, "background_sampling_ms": _background_sampling_msec, "last_background_attach_ms": _last_background_attach_msec, "last_background_collision_ms": _last_background_collision_msec, "last_background_entities_ms": _last_background_entities_msec, "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
+	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "pending_chunks": _pending_chunks.size(), "attachment_chunks_pending": _pending_attachment_chunks.size(), "background_jobs_active": 1 if _build_thread != null else 0, "background_jobs_queued": _build_queue.size(), "background_jobs_completed": _background_jobs_completed, "background_sampling_ms": _background_sampling_msec, "last_background_attach_ms": _last_background_attach_msec, "last_background_collision_ms": _last_background_collision_msec, "max_background_collision_piece_ms": _max_background_collision_piece_msec, "last_background_entities_ms": _last_background_entities_msec, "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}

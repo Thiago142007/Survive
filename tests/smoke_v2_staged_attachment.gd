@@ -22,9 +22,26 @@ func _run() -> void:
 	var collision: CollisionShape3D = chunk.get_node("central/CollisionShape3D")
 	assert(collision.shape == null, "A colisao deve ser montada em outro frame")
 	assert(not generator.is_spawn_ready())
-	await process_frame
-	assert(collision.shape != null, "A colisao deve entrar no segundo estagio")
-	assert(not generator.is_spawn_ready(), "O jogador aguarda tambem os recursos")
+	var shapes: Array[Shape3D] = []
+	for part_index in range(4):
+		await process_frame
+		var part: CollisionShape3D = chunk.get_node_or_null("central/CollisionShape3D" if part_index == 0 else "central/CollisionShape3D_%d" % part_index)
+		assert(part != null, "Cada frame deve criar uma parte da colisao")
+		assert(part.shape != null, "Cada frame deve instalar uma parte da colisao")
+		shapes.append(part.shape)
+		assert(not generator.is_spawn_ready(), "O jogador deve aguardar todas as partes da colisao")
+	assert(shapes.size() == 4)
+	var mesh: Mesh = chunk.get_node("central/MeshInstance3D").mesh
+	var expected_faces: PackedVector3Array = mesh.get_faces()
+	var face_offset := 0
+	var max_delta := 0.0
+	for shape in shapes:
+		var part_faces: PackedVector3Array = shape.get_faces()
+		for vertex in part_faces:
+			assert(face_offset < expected_faces.size())
+			max_delta = maxf(max_delta, vertex.distance_to(expected_faces[face_offset]))
+			face_offset += 1
+	assert(face_offset == expected_faces.size() and max_delta <= 0.001, "As quatro partes devem cobrir exatamente o terreno")
 	await process_frame
 	assert(generator.is_spawn_ready(), "A ilha deve ficar jogavel apos os recursos")
 	var resource_count := 0
@@ -35,9 +52,18 @@ func _run() -> void:
 	await physics_frame
 	var hit: Dictionary = generator.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(0.0, 30.0, 0.0), Vector3(0.0, -20.0, 0.0)))
 	assert(hit.get("collider") == chunk.get_node("central"))
+	for shape in shapes:
+		var part_faces: PackedVector3Array = shape.get_faces()
+		var sample := (part_faces[0] + part_faces[1] + part_faces[2]) / 3.0
+		var part_hit: Dictionary = generator.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(sample + Vector3.UP * 20.0, sample - Vector3.UP * 20.0))
+		assert(part_hit.get("collider") == chunk.get_node("central"), "Cada parte deve participar da fisica")
 	generator.call("_unload_chunk", Vector2i.ZERO)
 	generator.set_world_active(true)
 	assert(generator.is_spawn_ready(), "A volta pelo cache deve continuar imediata")
+	var reloaded: Node3D = generator.loaded_chunks[Vector2i.ZERO]
+	for part_index in range(4):
+		var part: CollisionShape3D = reloaded.get_node("central/CollisionShape3D" if part_index == 0 else "central/CollisionShape3D_%d" % part_index)
+		assert(part.shape == shapes[part_index], "O cache deve reutilizar todas as partes da colisao")
 	generator.free()
 
 	var changed = GENERATOR.new()
@@ -49,6 +75,8 @@ func _run() -> void:
 	while not changed.loaded_chunks.has(Vector2i.ZERO) and Time.get_ticks_msec() - changed_started < 10000:
 		await process_frame
 	assert(changed.loaded_chunks.has(Vector2i.ZERO) and not changed.is_spawn_ready())
+	await process_frame
+	await process_frame
 	changed.apply_seed(67890)
 	assert(int(changed.get_generation_diagnostics()["attachment_chunks_pending"]) == 0)
 	changed_started = Time.get_ticks_msec()

@@ -77,3 +77,15 @@ Three fresh Godot 4.3 headless processes, seed `12345`, `SURVIVE_ASYNC_GENERATIO
 | 798, 792, 799 | 31.4, 31.1, 31.4 | 4, 4, 4 | 31, 31, 31 | 29, 28, 28 | 639, 636, 643 | 28, 28, 28 |
 
 The collision-stage interval fell from about 61 ms to 31 ms in this headless setup. Resource/animal creation is now close to the collision stage in cost. The observed interval still exceeds a 16.7 ms frame budget, and graphical FPS, draw calls and frame pacing remain unmeasured.
+
+## Collision attachment across frames
+
+Version 2 now installs the prepared terrain triangles as four `ConcavePolygonShape3D` children of the same static island body, one part per frame. The player remains gated until all four parts and the resources/animals are attached. A complete set of four shapes is cached and reused on island reload; the synchronous path, including version 1, keeps its single terrain shape. The staged test verifies that the four shapes preserve the full face order and count, that physics rays hit each part, that cached reload reuses all four shape resources, and that a seed change cancels partial attachment.
+
+A local shape-only probe on seed `12345` measured about 30.6 ms to set all 103,386 face vertices in one shape, versus a maximum of 6.5 ms for each of four shapes. Three fresh Godot 4.3 headless processes with `SURVIVE_ASYNC_GENERATION=1` measured the complete generator:
+
+| Initial load wall time (ms) | Largest observed process-frame interval (ms) | Collision total across four frames (ms) | Largest collision-part frame (ms) | Resource/animal stage (ms) | Cache reload (ms) |
+| --- | --- | --- | --- | --- | --- |
+| 795, 795, 794 | 29.9, 29.9, 29.3 | 27, 25, 26 | 7, 7, 7 | 29, 29, 28 | 28, 28, 28 |
+
+The resource/animal stage now determines the largest observed interval. The terrain still has 34,462 triangles. Four physics shapes may have different contact behavior at their boundaries than one shape, so representative gameplay and graphical profiling remain necessary. The headless interval remains above a 16.7 ms frame budget.
