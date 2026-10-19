@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/core/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
-[ext_resource type="Script" path="res://scripts/world/island_generator.gd" id="3_islands"]
+[ext_resource type="Script" path="res://scripts/world/island_generator_v2.gd" id="3_islands"]
 [ext_resource type="PackedScene" path="res://scenes/hud/hud.tscn" id="4_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/main_menu.tscn" id="5_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/crafting_ui.tscn" id="6_crafting"]

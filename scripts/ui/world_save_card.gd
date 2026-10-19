@@ -14,6 +14,7 @@ var world_id := ""
 var preview: TextureRect
 var name_label: Label
 var difficulty_label: Label
+var seed_label: Label
 var play_button: Button
 var delete_button: Button
 
@@ -71,6 +72,13 @@ func _build_ui() -> void:
 	difficulty_label.add_theme_font_size_override("font_size", 14)
 	difficulty_label.add_theme_color_override("font_color", Color("#c7a68f"))
 	details.add_child(difficulty_label)
+	seed_label = Label.new()
+	seed_label.name = "WorldSeed"
+	seed_label.add_theme_font_size_override("font_size", 12)
+	seed_label.add_theme_color_override("font_color", Color("#a98e78"))
+	seed_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	seed_label.clip_text = true
+	details.add_child(seed_label)
 	var actions := VBoxContainer.new()
 	actions.name = "WorldActions"
 	actions.add_theme_constant_override("separation", 8)
@@ -118,6 +126,8 @@ func _update_contents(thumbnail: Texture2D = null) -> void:
 	name_label.text = String(data.get("name", "Meu mundo"))
 	var difficulty := String(data.get("difficulty", ""))
 	difficulty_label.text = String(DIFFICULTY_LABELS.get(difficulty, "Dificuldade indisponível"))
+	seed_label.text = "Seed: %s" % String(data.get("seed_source", str(data.get("seed", 0))))
+	seed_label.tooltip_text = seed_label.text
 	play_button.disabled = not bool(data.get("loadable", false))
 	delete_button.disabled = false
 

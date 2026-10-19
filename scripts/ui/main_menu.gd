@@ -519,12 +519,16 @@ func _on_save_list_back_pressed() -> void:
 	$TitleHotspots.visible = true
 
 func _on_start_pressed() -> void:
-	var parsed_seed := int(seed_input.text) if not seed_input.text.strip_edges().is_empty() else randi()
+	var source := seed_input.text.strip_edges()
+	if source.is_empty():
+		source = str(randi())
+		seed_input.text = source
+	var parsed_seed: int = load("res://scripts/world/world_seed.gd").parse(source)
 	var difficulties := ["easy", "normal", "hard"]
 	var selected: String = String(difficulties[clampi(difficulty_option.selected, 0, difficulties.size() - 1)])
 	var character := "female" if character_option.selected == 1 else "male"
 	var main_config = get_node_or_null("/root/Main")
-	var config := {"name": name_input.text, "description": description_input.text, "seed": parsed_seed, "difficulty": selected, "character_id": character}
+	var config := {"name": name_input.text, "description": description_input.text, "seed": parsed_seed, "seed_source": source, "difficulty": selected, "character_id": character}
 	if not main_config or not main_config.start_new_world(config):
 		error_label.text = "Não foi possível iniciar este mundo."
 		return

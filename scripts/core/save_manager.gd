@@ -3,7 +3,7 @@ extends Node
 signal save_finished(world_id: String, success: bool, message: String)
 
 const SAVE_FORMAT_VERSION := 1
-const WORLD_GENERATION_VERSION := 1
+const WORLD_GENERATION_VERSION := 2
 const DEFAULT_SAVE_DIRECTORY := "user://saves"
 const THUMBNAIL_SIZE := Vector2i(480, 270)
 const THUMBNAIL_JPEG_QUALITY := 0.85
@@ -34,7 +34,7 @@ func save_active_world() -> bool:
 	return success
 
 func handle_world_generator_version(saved_version: int) -> Dictionary:
-	if saved_version == WORLD_GENERATION_VERSION:
+	if saved_version == 1 or saved_version == WORLD_GENERATION_VERSION:
 		return {"status": "supported", "message": "Versão de mundo compatível"}
 	return {"status": "incompatible", "message": "Versão de geração incompatível; o save original foi preservado"}
 
@@ -120,7 +120,9 @@ func write_save(world_id: String, snapshot: Dictionary) -> bool:
 
 	var payload := snapshot.duplicate(true)
 	payload["save_format_version"] = SAVE_FORMAT_VERSION
-	payload["world_generation_version"] = WORLD_GENERATION_VERSION
+	payload["world_generation_version"] = int(snapshot.get("world_generation_version", WORLD_GENERATION_VERSION))
+	if handle_world_generator_version(int(payload["world_generation_version"])).get("status") != "supported":
+		return false
 	payload["world_id"] = world_id
 	if not payload.has("created_at"):
 		payload["created_at"] = Time.get_datetime_string_from_system(true, true)
@@ -203,6 +205,7 @@ func list_saves() -> Array[Dictionary]:
 				"name": String(data.get("name", data.get("world_name", "Meu mundo"))),
 				"description": String(data.get("description", "")),
 				"seed": int(data.get("seed", 0)),
+				"seed_source": String(data.get("seed_source", str(data.get("seed", 0)))),
 				"difficulty": String(data.get("difficulty", "normal")),
 				"character_id": String(data.get("character_id", "male")),
 				"saved_at": String(data.get("saved_at", "")),
@@ -258,7 +261,7 @@ func _decode_file(path: String) -> Dictionary:
 	if format_version != SAVE_FORMAT_VERSION:
 		return _result(false, "Versão de save incompatível: %d" % format_version, {}, "unsupported_version")
 	var generator_version := int(data.get("world_generation_version", -1))
-	if generator_version != WORLD_GENERATION_VERSION:
+	if handle_world_generator_version(generator_version).get("status") != "supported":
 		return _result(false, "Versão de geração incompatível: %d" % generator_version, {}, "unsupported_version")
 	if not data.has("world_id") or not data.has("seed") or not data.has("difficulty"):
 		return _result(false, "Save incompleto", {}, "corrupt")

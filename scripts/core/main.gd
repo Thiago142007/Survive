@@ -4,6 +4,8 @@ var player: Node3D = null
 var world_name: String = "Meu mundo"
 var world_description: String = ""
 var world_seed: int = 55960
+var seed_source: String = "55960"
+var world_generation_version: int = SaveManager.WORLD_GENERATION_VERSION
 var difficulty: String = "normal"
 var character_id: String = "male"
 var world_id: String = ""
@@ -33,6 +35,8 @@ func start_new_world(config: Dictionary) -> bool:
 		world_name = "Meu mundo"
 	world_description = String(config.get("description", "")).strip_edges()
 	world_seed = int(config.get("seed", randi()))
+	seed_source = String(config.get("seed_source", str(world_seed)))
+	world_generation_version = SaveManager.WORLD_GENERATION_VERSION
 	difficulty = String(config.get("difficulty", "normal"))
 	if difficulty not in ["easy", "normal", "hard"]:
 		difficulty = "normal"
@@ -49,6 +53,10 @@ func start_new_world(config: Dictionary) -> bool:
 	var generator = world.get_node_or_null("IslandGenerator") if world else null
 	if generator:
 		generator.set_world_active(false)
+		generator.generation_version = world_generation_version
+		generator.island_count = clampi(int(config.get("island_count", 12)), 1, 32)
+		generator.ring_distance = clampf(float(config.get("ring_distance", 3600.0)), 1000.0, 6000.0)
+		generator.chunk_size = clampf(float(config.get("chunk_size", 700.0)), 300.0, 1500.0)
 		generator.apply_persistent_state({"resources": {}, "animals": {}})
 		generator.apply_seed(world_seed)
 	if player:
@@ -94,19 +102,21 @@ func start_new_world(config: Dictionary) -> bool:
 func capture_save_snapshot() -> Dictionary:
 	var snapshot := {
 		"save_format_version": SaveManager.SAVE_FORMAT_VERSION,
-		"world_generation_version": SaveManager.WORLD_GENERATION_VERSION,
+		"world_generation_version": world_generation_version,
 		"world_id": world_id,
 		"name": world_name,
 		"description": world_description,
 		"created_at": created_at if not created_at.is_empty() else Time.get_datetime_string_from_system(true, true),
 		"playtime_seconds": playtime_seconds,
 		"seed": world_seed,
+		"seed_source": seed_source,
 		"difficulty": difficulty,
 		"character_id": character_id,
 		"player": {},
 		"inventory": [],
 		"research": {},
 		"buildings": [],
+		"generation_config": {},
 		"world_state": {"resources": {}, "animals": {}}
 	}
 	if player:
@@ -123,6 +133,8 @@ func capture_save_snapshot() -> Dictionary:
 	var world := _current_world()
 	var generator = world.get_node_or_null("IslandGenerator") if world else null
 	if generator:
+		snapshot["world_generation_version"] = generator.generation_version
+		snapshot["generation_config"] = {"island_count": generator.island_count, "ring_distance": generator.ring_distance, "chunk_size": generator.chunk_size}
 		snapshot["world_state"] = generator.capture_persistent_state()
 	return snapshot
 
@@ -150,6 +162,8 @@ func start_world_from_save(snapshot: Dictionary) -> bool:
 	created_at = String(snapshot.get("created_at", ""))
 	playtime_seconds = maxf(0.0, float(snapshot.get("playtime_seconds", 0.0)))
 	world_seed = new_seed
+	seed_source = String(snapshot.get("seed_source", str(new_seed)))
+	world_generation_version = int(snapshot["world_generation_version"])
 	difficulty = new_difficulty
 	character_id = new_character
 	game_started = false
@@ -158,6 +172,11 @@ func start_world_from_save(snapshot: Dictionary) -> bool:
 	var generator = world.get_node_or_null("IslandGenerator") if world else null
 	if generator:
 		generator.set_world_active(false)
+		generator.generation_version = world_generation_version
+		var generation_config: Dictionary = snapshot.get("generation_config", {})
+		generator.island_count = int(generation_config.get("island_count", 12))
+		generator.ring_distance = float(generation_config.get("ring_distance", 3600.0))
+		generator.chunk_size = float(generation_config.get("chunk_size", 700.0))
 		generator.apply_persistent_state(snapshot["world_state"])
 		generator.apply_seed(world_seed)
 	if player:
@@ -182,10 +201,23 @@ func start_world_from_save(snapshot: Dictionary) -> bool:
 func _is_supported_snapshot(snapshot: Dictionary) -> bool:
 	if int(snapshot.get("save_format_version", -1)) != SaveManager.SAVE_FORMAT_VERSION:
 		return false
-	if int(snapshot.get("world_generation_version", -1)) != SaveManager.WORLD_GENERATION_VERSION:
+	if SaveManager.handle_world_generator_version(int(snapshot.get("world_generation_version", -1))).get("status") != "supported":
 		return false
 	if not snapshot.has("seed") or not snapshot.has("difficulty"):
 		return false
+	var generation_config: Variant = snapshot.get("generation_config", {})
+	if not generation_config is Dictionary:
+		return false
+	if not generation_config.is_empty():
+		for required in ["island_count", "ring_distance", "chunk_size"]:
+			if not generation_config.has(required) or not _is_finite_number(generation_config[required]):
+				return false
+		if int(generation_config["island_count"]) < 1 or int(generation_config["island_count"]) > 32:
+			return false
+		if float(generation_config["ring_distance"]) < 1000.0 or float(generation_config["ring_distance"]) > 6000.0:
+			return false
+		if float(generation_config["chunk_size"]) < 300.0 or float(generation_config["chunk_size"]) > 1500.0:
+			return false
 	if String(snapshot["difficulty"]) not in ["easy", "normal", "hard"]:
 		return false
 	if not (snapshot.get("player") is Dictionary and snapshot.get("inventory") is Array and snapshot.get("research") is Dictionary and snapshot.get("buildings") is Array and snapshot.get("world_state") is Dictionary):

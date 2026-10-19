@@ -4,6 +4,7 @@ extends Node3D
 ## O layout e os recursos de cada ilha dependem exclusivamente da seed e do indice.
 
 @export var seed: int = 55960
+@export var generation_version: int = 1
 @export var island_count: int = 12
 @export var ring_distance: float = 3600.0
 @export var chunk_size: float = 700.0

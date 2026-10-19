@@ -284,7 +284,6 @@ theme_override_colors/font_placeholder_color = Color(0.51, 0.64, 0.59, 1)
 theme_override_styles/normal = SubResource("Input_normal")
 theme_override_styles/focus = SubResource("Input_focus")
 placeholder_text = "Seed aleatória"
-text = "55960"
 
 [node name="DifficultyCaption" type="Label" parent="CreateWorldPanel/Margin/FormScroll/VBox"]
 theme_override_colors/font_color = Color(0.74, 0.83, 0.77, 1)
