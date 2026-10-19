@@ -17,12 +17,21 @@ func _run() -> void:
 	generator.generation_version = version
 	generator.seed = seed_value
 	var quality := OS.get_environment("SURVIVE_DECORATION_QUALITY")
+	var async_mode := OS.get_environment("SURVIVE_ASYNC_GENERATION") == "1"
+	generator.async_generation_enabled = async_mode
 	if not quality.is_empty():
 		generator.decoration_quality = quality
 	generator.stream_radius_chunks = 0
 	var started := Time.get_ticks_msec()
 	root.add_child(generator)
-	await process_frame
+	var max_frame_ms := 0.0
+	var frame_count := 0
+	while not generator.loaded_chunks.has(Vector2i.ZERO) and Time.get_ticks_msec() - started < 15000:
+		var frame_started := Time.get_ticks_usec()
+		await process_frame
+		max_frame_ms = maxf(max_frame_ms, float(Time.get_ticks_usec() - frame_started) / 1000.0)
+		frame_count += 1
+	assert(generator.loaded_chunks.has(Vector2i.ZERO), "Initial island generation exceeded 15 seconds")
 	var load_wall_ms := Time.get_ticks_msec() - started
 	var loaded_bytes := OS.get_static_memory_usage()
 	var diagnostics: Dictionary = generator.get_generation_diagnostics()
@@ -45,6 +54,9 @@ func _run() -> void:
 	print(JSON.stringify({
 		"seed": seed_value,
 		"version": version,
+		"async_generation": async_mode,
+		"frames_until_load": frame_count,
+		"max_observed_frame_ms": max_frame_ms,
 		"load_wall_ms": load_wall_ms,
 		"reload_wall_ms": reload_wall_ms,
 		"diagnostics": diagnostics,

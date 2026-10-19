@@ -39,4 +39,17 @@ The project's Compatibility renderer does not provide the same smooth visibility
 
 Version 2 now loads the player's current chunk and any island whose terrain reaches the player immediately. Empty nearby chunks also load immediately. Other island chunks enter a nearest-first queue; the default budget is one distant chunk per frame through `max_distant_chunks_per_frame`. Moving away removes obsolete requests, and deactivating the world clears the queue. Diagnostics expose `pending_chunks` so stalls and incomplete streaming can be observed.
 
-This prevents several distant islands from being generated in one frame. Each individual island still builds its mesh, collision, resources, and decoration synchronously on the main thread when its queued turn arrives. This stage is progressive scheduling, not background-thread generation, so the worst single-island stall remains.
+This prevents several distant islands from being generated in one frame. At this checkpoint, each island still built its mesh, collision, resources, and decoration synchronously on the main thread. The background sampling stage below addresses the largest part of that stall.
+
+## Background CPU sampling
+
+The game scene now enables background generation for version 2. One worker at a time samples terrain vertex arrays and decorative instance transforms using an isolated generator outside the active scene tree. The main thread creates the terrain mesh, collision shape, nodes, resources, animals and MultiMeshes after sampling finishes. A direct synchronous path remains available for tests and cached reloads. Changing seeds or leaving the world discards obsolete results. The player waits for the initial terrain collision before physics starts, so it cannot fall through the unfinished island.
+
+Three fresh Godot 4.3 headless processes per mode measured seed `12345` with `SURVIVE_ASYNC_GENERATION=0` or `1` in `tools/benchmark_world_generation.gd`:
+
+| Mode | Initial load wall time (ms) | Largest observed process-frame interval (ms) | Cache reload (ms) |
+| --- | --- | --- | --- |
+| Synchronous | 809, 805, 805 | 749.5, 746.3, 744.5 | 27, 28, 27 |
+| Background sampling | 816, 814, 814 | 120.6, 120.0, 118.8 | 28, 29, 29 |
+
+The background worker spent about 625–627 ms sampling terrain and decoration. Main-thread attachment still took 93–94 ms, including collision creation (about 60 ms) and gameplay node creation. This substantially reduces the single-frame stall but does not yet meet a smooth-frame target. The headless process-frame interval is a CPU scheduling observation, not representative graphical FPS or GPU frame time. The total time until the initial island is ready is essentially unchanged. The game still needs graphical profiling, and collision/resource attachment needs another reduction pass.

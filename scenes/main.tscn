@@ -31,6 +31,7 @@ environment = SubResource("Environment_env")
 
 [node name="IslandGenerator" type="Node3D" parent="."]
 script = ExtResource("3_islands")
+async_generation_enabled = true
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)

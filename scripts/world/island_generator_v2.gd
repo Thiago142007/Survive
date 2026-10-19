@@ -3,6 +3,7 @@ extends "res://scripts/world/island_generator.gd"
 ## Version 1 stays intact for existing saves. Version 2 samples geography from
 ## independent seed streams, so streaming order cannot change the world.
 const WORLD_SEED = preload("res://scripts/world/world_seed.gd")
+const ISLAND_GENERATION_JOB = preload("res://scripts/world/island_generation_job.gd")
 const GENERATION_VERSION := 2
 const FOREST_CANDIDATES := 820
 const GROUND_CANDIDATES := 1250
@@ -21,6 +22,7 @@ const DECORATION_LOD_BANDS := {
 }
 
 @export_range(1, 4, 1) var max_distant_chunks_per_frame: int = 1
+@export var async_generation_enabled: bool = false
 var _decoration_quality := "high"
 @export_enum("low", "medium", "high") var decoration_quality: String:
 	get:
@@ -42,11 +44,26 @@ var _cache_hits: Dictionary = {"terrain": 0, "collision": 0, "details": 0}
 var _pending_chunks: Array[Vector2i] = []
 var _last_stream_focus := Vector3.INF
 var _last_lod_focus := Vector3.INF
+var _prepared_terrain_arrays: Dictionary = {}
+var _prepared_detail_transforms: Dictionary = {}
+var _wanted_chunks: Dictionary = {}
+var _build_queue: Array[Vector2i] = []
+var _build_thread: Thread
+var _build_job: RefCounted
+var _building_chunk := Vector2i(999999, 999999)
+var _build_epoch := 0
+var _active_build_epoch := 0
+var _background_jobs_completed := 0
+var _background_sampling_msec := 0
+var _last_background_attach_msec := 0
+var _spawn_island_ready := false
+var _spawn_target_chunk := Vector2i.ZERO
 
 func _init() -> void:
 	generation_version = GENERATION_VERSION
 
 func apply_seed(new_seed: int) -> void:
+	_cancel_pending_builds()
 	_pending_chunks.clear()
 	_last_stream_focus = Vector3.INF
 	_last_lod_focus = Vector3.INF
@@ -57,6 +74,7 @@ func apply_seed(new_seed: int) -> void:
 	super.apply_seed(new_seed)
 
 func _rebuild_layout() -> void:
+	_cancel_pending_builds()
 	_pending_chunks.clear()
 	_last_stream_focus = Vector3.INF
 	_last_lod_focus = Vector3.INF
@@ -119,7 +137,116 @@ func _rebuild_layout() -> void:
 	for descriptor in island_descriptors:
 		descriptor["archipelago_type"] = layout_type
 	_update_respawn_graph()
+	_spawn_target_chunk = _spawn_chunk_for_focus()
 	_generation_msec = Time.get_ticks_msec() - started
+
+func _spawn_chunk_for_focus() -> Vector2i:
+	if not is_inside_tree():
+		return Vector2i.ZERO
+	var focus := _get_focus_position()
+	for descriptor in island_descriptors:
+		var center: Vector3 = descriptor["center"]
+		if Vector2(focus.x - center.x, focus.z - center.z).length() < _island_reach(descriptor) + 20.0:
+			return descriptor["chunk"]
+	return _world_to_chunk(focus)
+
+func _cancel_pending_builds() -> void:
+	_build_epoch += 1
+	_spawn_island_ready = false
+	_build_queue.clear()
+	_wanted_chunks.clear()
+	_prepared_terrain_arrays.clear()
+	_prepared_detail_transforms.clear()
+
+func _load_chunk(chunk_key: Vector2i) -> void:
+	super._load_chunk(chunk_key)
+	if generation_version == GENERATION_VERSION and chunk_key == _spawn_target_chunk and loaded_chunks.has(chunk_key):
+		_spawn_island_ready = true
+
+func _request_chunk(chunk_key: Vector2i) -> void:
+	if loaded_chunks.has(chunk_key) or _build_queue.has(chunk_key) or (_building_chunk == chunk_key and _active_build_epoch == _build_epoch):
+		return
+	var descriptor: Dictionary = {}
+	for item in island_descriptors:
+		if item["chunk"] == chunk_key:
+			descriptor = item
+			break
+	if descriptor.is_empty() or not _world_is_active():
+		_load_chunk(chunk_key)
+		return
+	var cached: Dictionary = _island_cache.get(String(descriptor["id"]), {})
+	if cached.has("terrain") and cached.has("details"):
+		_load_chunk(chunk_key)
+		return
+	_build_queue.append(chunk_key)
+	_start_next_build()
+
+func _start_next_build() -> void:
+	if _build_thread != null or _build_queue.is_empty():
+		return
+	_building_chunk = _build_queue.pop_front()
+	var descriptor: Dictionary = {}
+	for item in island_descriptors:
+		if item["chunk"] == _building_chunk:
+			descriptor = item
+			break
+	if descriptor.is_empty():
+		_building_chunk = Vector2i(999999, 999999)
+		_start_next_build()
+		return
+	_build_job = ISLAND_GENERATION_JOB.new()
+	_build_job.generator_script = get_script()
+	_build_job.world_seed = seed
+	_build_job.descriptor = descriptor.duplicate(true)
+	_active_build_epoch = _build_epoch
+	_build_thread = Thread.new()
+	var error := _build_thread.start(Callable(_build_job, "run"))
+	if error != OK:
+		_build_thread = null
+		_build_job = null
+		var failed_chunk := _building_chunk
+		_building_chunk = Vector2i(999999, 999999)
+		_load_chunk(failed_chunk)
+		_start_next_build()
+
+func _poll_background_build() -> void:
+	if _build_thread == null or _build_thread.is_alive():
+		return
+	var result: Dictionary = _build_thread.wait_to_finish()
+	_build_thread = null
+	_build_job = null
+	var completed_chunk := _building_chunk
+	_building_chunk = Vector2i(999999, 999999)
+	if _active_build_epoch == _build_epoch and generation_version == GENERATION_VERSION and _wanted_chunks.has(completed_chunk) and _world_is_active():
+		var descriptor: Dictionary = {}
+		for item in island_descriptors:
+			if item["chunk"] == completed_chunk:
+				descriptor = item
+				break
+		if not descriptor.is_empty() and not loaded_chunks.has(completed_chunk):
+			var attach_started := Time.get_ticks_msec()
+			var island_id := String(descriptor["id"])
+			_prepared_terrain_arrays[island_id] = result["terrain"]
+			_prepared_detail_transforms[island_id] = result["details"]
+			_phase_msec["terrain"] += int(result["terrain_ms"])
+			_phase_msec["decoration"] += int(result["decoration_ms"])
+			_load_chunk(completed_chunk)
+			_prepared_terrain_arrays.erase(island_id)
+			_prepared_detail_transforms.erase(island_id)
+			_last_background_attach_msec = Time.get_ticks_msec() - attach_started
+			_background_sampling_msec += int(result["terrain_ms"]) + int(result["decoration_ms"])
+			_background_jobs_completed += 1
+	_start_next_build()
+
+func is_spawn_ready() -> bool:
+	return not async_generation_enabled or generation_version != GENERATION_VERSION or _spawn_island_ready
+
+func _exit_tree() -> void:
+	if _build_thread != null:
+		_build_thread.wait_to_finish()
+		_build_thread = null
+		_build_job = null
+	super._exit_tree()
 
 func _make_descriptor(index: int, island_id: String, center: Vector3, radius: float, rng: RandomNumberGenerator) -> Dictionary:
 	var descriptor: Dictionary = super._make_descriptor(index, island_id, center, radius, rng)
@@ -390,6 +517,17 @@ func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 		_touch_cached_island(cache_key)
 		return cached["terrain"]
 	var started := Time.get_ticks_msec()
+	var arrays: Array = _prepared_terrain_arrays.get(cache_key, [])
+	if arrays.is_empty():
+		arrays = _build_terrain_arrays(descriptor)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, _make_terrain_material())
+	_remember_island_resource(cache_key, "terrain", mesh)
+	_phase_msec["terrain"] += Time.get_ticks_msec() - started
+	return mesh
+
+func _build_terrain_arrays(descriptor: Dictionary) -> Array:
 	var aspect := float(descriptor["aspect"])
 	var extent := float(descriptor["radius"]) * maxf(aspect, 1.0 / aspect) * 1.42 + 45.0
 	var cell_count := ceili(extent * 2.0 / 15.0)
@@ -467,7 +605,6 @@ func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 					indices.append(local_b)
 					indices.append(local_d)
 					indices.append(local_c)
-	var mesh := ArrayMesh.new()
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -475,11 +612,7 @@ func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(0, _make_terrain_material())
-	_remember_island_resource(cache_key, "terrain", mesh)
-	_phase_msec["terrain"] += Time.get_ticks_msec() - started
-	return mesh
+	return arrays
 
 func _make_terrain_collision_shape(mesh: Mesh, descriptor: Dictionary) -> Shape3D:
 	if generation_version == 1:
@@ -718,6 +851,52 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 		_touch_cached_island(cache_key)
 		return
 	var started := Time.get_ticks_msec()
+	var transforms: Dictionary = _prepared_detail_transforms.get(cache_key, {})
+	if transforms.is_empty():
+		transforms = _build_detail_transforms(descriptor)
+	var trunks: Array[Transform3D] = transforms["trunks"]
+	var canopies: Array[Transform3D] = transforms["canopies"]
+	var ground: Array[Transform3D] = transforms["ground"]
+	var rocks: Array[Transform3D] = transforms["rocks"]
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.19
+	trunk_mesh.bottom_radius = 0.30
+	trunk_mesh.height = 1.0
+	trunk_mesh.radial_segments = 6
+	var canopy_mesh := SphereMesh.new()
+	canopy_mesh.radius = 1.0
+	canopy_mesh.height = 1.0
+	canopy_mesh.radial_segments = 7
+	canopy_mesh.rings = 3
+	var shrub_mesh := SphereMesh.new()
+	shrub_mesh.radius = 1.0
+	shrub_mesh.height = 1.0
+	shrub_mesh.radial_segments = 6
+	shrub_mesh.rings = 2
+	var rock_mesh := SphereMesh.new()
+	rock_mesh.radius = 1.0
+	rock_mesh.height = 1.0
+	rock_mesh.radial_segments = 6
+	rock_mesh.rings = 2
+	var visuals := {
+		"ForestTrunks": _add_instances(chunk, "ForestTrunks", trunk_mesh, Color("#654733"), trunks),
+		"ForestCanopies": _add_instances(chunk, "ForestCanopies", canopy_mesh, Color("#315f38"), canopies),
+		"GroundCover": _add_instances(chunk, "GroundCover", shrub_mesh, Color("#597746"), ground),
+		"StoneCover": _add_instances(chunk, "StoneCover", rock_mesh, Color("#757b78"), rocks)
+	}
+	var details := {}
+	var focus := _get_focus_position()
+	for label in visuals:
+		var visual: MultiMeshInstance3D = visuals[label]
+		if visual:
+			visual.set_meta("island_index", int(descriptor["index"]))
+			visual.set_meta("detail_label", label)
+			_set_visual_quality(visual, descriptor, focus)
+			details[label] = {"multimesh": visual.multimesh, "material": visual.material_override}
+	_remember_island_resource(cache_key, "details", details)
+	_phase_msec["decoration"] += Time.get_ticks_msec() - started
+
+func _build_detail_transforms(descriptor: Dictionary) -> Dictionary:
 	var forest_rng := _stream("forest_instances", int(descriptor["index"]))
 	var ground_rng := _stream("ground_instances", int(descriptor["index"]))
 	var rock_rng := _stream("rock_instances", int(descriptor["index"]))
@@ -765,43 +944,7 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 			continue
 		var scale := rock_rng.randf_range(0.65, 2.0)
 		rocks.append(Transform3D(Basis.IDENTITY.scaled(Vector3(scale, scale * 0.72, scale)), island_center + point + Vector3.UP * (scale * 0.12)))
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.19
-	trunk_mesh.bottom_radius = 0.30
-	trunk_mesh.height = 1.0
-	trunk_mesh.radial_segments = 6
-	var canopy_mesh := SphereMesh.new()
-	canopy_mesh.radius = 1.0
-	canopy_mesh.height = 1.0
-	canopy_mesh.radial_segments = 7
-	canopy_mesh.rings = 3
-	var shrub_mesh := SphereMesh.new()
-	shrub_mesh.radius = 1.0
-	shrub_mesh.height = 1.0
-	shrub_mesh.radial_segments = 6
-	shrub_mesh.rings = 2
-	var rock_mesh := SphereMesh.new()
-	rock_mesh.radius = 1.0
-	rock_mesh.height = 1.0
-	rock_mesh.radial_segments = 6
-	rock_mesh.rings = 2
-	var visuals := {
-		"ForestTrunks": _add_instances(chunk, "ForestTrunks", trunk_mesh, Color("#654733"), trunks),
-		"ForestCanopies": _add_instances(chunk, "ForestCanopies", canopy_mesh, Color("#315f38"), canopies),
-		"GroundCover": _add_instances(chunk, "GroundCover", shrub_mesh, Color("#597746"), ground),
-		"StoneCover": _add_instances(chunk, "StoneCover", rock_mesh, Color("#757b78"), rocks)
-	}
-	var details := {}
-	var focus := _get_focus_position()
-	for label in visuals:
-		var visual: MultiMeshInstance3D = visuals[label]
-		if visual:
-			visual.set_meta("island_index", int(descriptor["index"]))
-			visual.set_meta("detail_label", label)
-			_set_visual_quality(visual, descriptor, focus)
-			details[label] = {"multimesh": visual.multimesh, "material": visual.material_override}
-	_remember_island_resource(cache_key, "details", details)
-	_phase_msec["decoration"] += Time.get_ticks_msec() - started
+	return {"trunks": trunks, "canopies": canopies, "ground": ground, "rocks": rocks}
 
 func _apply_decoration_quality() -> void:
 	var focus := _get_focus_position()
@@ -891,6 +1034,11 @@ func _refresh_streaming() -> void:
 			desired[island_chunk] = true
 		if distance < reach + 20.0:
 			immediate[island_chunk] = true
+	if async_generation_enabled:
+		_wanted_chunks = desired
+		for queued_chunk in _build_queue.duplicate():
+			if not desired.has(queued_chunk):
+				_build_queue.erase(queued_chunk)
 	for key in loaded_chunks.keys().duplicate():
 		if not desired.has(key):
 			_unload_chunk(key)
@@ -899,7 +1047,10 @@ func _refresh_streaming() -> void:
 		if loaded_chunks.has(key):
 			continue
 		if immediate.has(key) or not island_chunks.has(key):
-			_load_chunk(key)
+			if async_generation_enabled:
+				_request_chunk(key)
+			else:
+				_load_chunk(key)
 		else:
 			_pending_chunks.append(key)
 	_pending_chunks.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
@@ -922,12 +1073,17 @@ func _load_urgent_pending_islands(focus: Vector3) -> void:
 		var center: Vector3 = descriptor["center"]
 		if Vector2(focus.x - center.x, focus.z - center.z).length() < _island_reach(descriptor) + 20.0:
 			_pending_chunks.erase(chunk_key)
-			_load_chunk(chunk_key)
+			if async_generation_enabled:
+				_request_chunk(chunk_key)
+			else:
+				_load_chunk(chunk_key)
 
 func _process(_delta: float) -> void:
 	if not _world_is_active():
+		_poll_background_build()
 		return
 	_refresh_streaming()
+	_poll_background_build()
 	if generation_version == 1:
 		return
 	for _index in range(maxi(1, max_distant_chunks_per_frame)):
@@ -935,7 +1091,10 @@ func _process(_delta: float) -> void:
 			break
 		var chunk_key: Vector2i = _pending_chunks.pop_front()
 		if not loaded_chunks.has(chunk_key):
-			_load_chunk(chunk_key)
+			if async_generation_enabled:
+				_request_chunk(chunk_key)
+			else:
+				_load_chunk(chunk_key)
 	var focus := _get_focus_position()
 	if Vector2(focus.x - _last_lod_focus.x, focus.z - _last_lod_focus.z).length_squared() >= 100.0:
 		_apply_decoration_quality()
@@ -943,9 +1102,14 @@ func _process(_delta: float) -> void:
 
 func set_world_active(active: bool) -> void:
 	if not active:
+		_cancel_pending_builds()
 		_pending_chunks.clear()
 		_last_stream_focus = Vector3.INF
 		_last_lod_focus = Vector3.INF
+	else:
+		if generation_version == GENERATION_VERSION:
+			_spawn_target_chunk = _spawn_chunk_for_focus()
+			_spawn_island_ready = loaded_chunks.has(_spawn_target_chunk)
 	super.set_world_active(active)
 
 func get_generation_diagnostics() -> Dictionary:
@@ -971,4 +1135,4 @@ func get_generation_diagnostics() -> Dictionary:
 				for child in node.get_children():
 					if child.name.begins_with("Cave_"):
 						counts["caves"] += 1
-	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "pending_chunks": _pending_chunks.size(), "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
+	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "pending_chunks": _pending_chunks.size(), "background_jobs_active": 1 if _build_thread != null else 0, "background_jobs_queued": _build_queue.size(), "background_jobs_completed": _background_jobs_completed, "background_sampling_ms": _background_sampling_msec, "last_background_attach_ms": _last_background_attach_msec, "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}

@@ -114,6 +114,12 @@ func _toggle_camera() -> void:
 		presentation.set_held_item(get_active_tool())
 
 func _physics_process(delta: float) -> void:
+	if Main.game_started and Main.world_generation_version == 2:
+		var world := get_tree().current_scene
+		var generator = world.get_node_or_null("IslandGenerator") if world else null
+		if generator and generator.has_method("is_spawn_ready") and not generator.is_spawn_ready():
+			velocity = Vector3.ZERO
+			return
 	if not gameplay_input_enabled:
 		velocity = Vector3.ZERO
 		return
