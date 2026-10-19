@@ -5,6 +5,8 @@ signal save_finished(world_id: String, success: bool, message: String)
 const SAVE_FORMAT_VERSION := 1
 const WORLD_GENERATION_VERSION := 1
 const DEFAULT_SAVE_DIRECTORY := "user://saves"
+const THUMBNAIL_SIZE := Vector2i(480, 270)
+const THUMBNAIL_JPEG_QUALITY := 0.85
 
 var save_directory: String = DEFAULT_SAVE_DIRECTORY
 var active_world_id: String = ""
@@ -35,6 +37,63 @@ func handle_world_generator_version(saved_version: int) -> Dictionary:
 	if saved_version == WORLD_GENERATION_VERSION:
 		return {"status": "supported", "message": "Versão de mundo compatível"}
 	return {"status": "incompatible", "message": "Versão de geração incompatível; o save original foi preservado"}
+
+func get_thumbnail_path(world_id: String) -> String:
+	if not _is_safe_world_id(world_id):
+		return ""
+	return "%s/%s.jpg" % [DEFAULT_SAVE_DIRECTORY.trim_suffix("/"), world_id]
+
+func write_world_thumbnail(world_id: String, source_image: Image) -> bool:
+	var relative_path := get_thumbnail_path(world_id)
+	if relative_path.is_empty() or source_image == null or source_image.is_empty():
+		return false
+	var directory_path := ProjectSettings.globalize_path(DEFAULT_SAVE_DIRECTORY)
+	if DirAccess.make_dir_recursive_absolute(directory_path) != OK and not DirAccess.dir_exists_absolute(directory_path):
+		return false
+	var image_to_write := source_image.duplicate()
+	image_to_write.resize(THUMBNAIL_SIZE.x, THUMBNAIL_SIZE.y, Image.INTERPOLATE_LANCZOS)
+	var final_path := ProjectSettings.globalize_path(relative_path)
+	var temporary_path := final_path + ".tmp.jpg"
+	var backup_path := final_path + ".bak"
+	if image_to_write.save_jpg(temporary_path, THUMBNAIL_JPEG_QUALITY) != OK:
+		if FileAccess.file_exists(temporary_path):
+			DirAccess.remove_absolute(temporary_path)
+		return false
+	var verification := Image.new()
+	if verification.load(temporary_path) != OK or verification.get_width() != THUMBNAIL_SIZE.x or verification.get_height() != THUMBNAIL_SIZE.y:
+		DirAccess.remove_absolute(temporary_path)
+		return false
+	var had_previous := FileAccess.file_exists(final_path)
+	if had_previous:
+		if FileAccess.file_exists(backup_path):
+			DirAccess.remove_absolute(backup_path)
+		if DirAccess.rename_absolute(final_path, backup_path) != OK:
+			DirAccess.remove_absolute(temporary_path)
+			return false
+	if DirAccess.rename_absolute(temporary_path, final_path) != OK:
+		if had_previous and FileAccess.file_exists(backup_path):
+			DirAccess.rename_absolute(backup_path, final_path)
+		if FileAccess.file_exists(temporary_path):
+			DirAccess.remove_absolute(temporary_path)
+		return false
+	if FileAccess.file_exists(backup_path):
+		DirAccess.remove_absolute(backup_path)
+	return true
+
+func load_world_thumbnail(world_id: String) -> Texture2D:
+	var relative_path := get_thumbnail_path(world_id)
+	if relative_path.is_empty():
+		return null
+	var absolute_path := ProjectSettings.globalize_path(relative_path)
+	if not FileAccess.file_exists(absolute_path):
+		return null
+	var image_bytes := FileAccess.get_file_as_bytes(absolute_path)
+	if image_bytes.size() < 3 or image_bytes[0] != 0xFF or image_bytes[1] != 0xD8 or image_bytes[2] != 0xFF:
+		return null
+	var image := Image.new()
+	if image.load_jpg_from_buffer(image_bytes) != OK or image.is_empty():
+		return null
+	return ImageTexture.create_from_image(image)
 
 func create_save(snapshot: Dictionary) -> String:
 	if not _ensure_save_directory():
@@ -150,7 +209,8 @@ func list_saves() -> Array[Dictionary]:
 				"playtime_seconds": float(data.get("playtime_seconds", 0.0)),
 				"recovered_from_backup": bool(loaded.get("recovered_from_backup", false)),
 				"loadable": true,
-				"error": String(loaded.get("error", ""))
+				"error": String(loaded.get("error", "")),
+				"thumbnail_path": _readable_thumbnail_path(world_id)
 			})
 		else:
 			saves.append({
@@ -164,7 +224,8 @@ func list_saves() -> Array[Dictionary]:
 				"playtime_seconds": 0.0,
 				"recovered_from_backup": false,
 				"loadable": false,
-				"error": String(loaded.get("error", "Save incompatível"))
+				"error": String(loaded.get("error", "Save incompatível")),
+				"thumbnail_path": _readable_thumbnail_path(world_id)
 			})
 	saves.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a.get("saved_at", "")) > String(b.get("saved_at", "")))
 	return saves
@@ -176,7 +237,8 @@ func delete_save(world_id: String) -> bool:
 	var backup_path := _backup_path(world_id)
 	var temp_path := path + ".tmp"
 	var existed := FileAccess.file_exists(path) or FileAccess.file_exists(backup_path)
-	for target in [path, backup_path, temp_path]:
+	var thumbnail_path := ProjectSettings.globalize_path(get_thumbnail_path(world_id))
+	for target in [path, backup_path, temp_path, thumbnail_path, thumbnail_path + ".tmp.jpg", thumbnail_path + ".bak"]:
 		if FileAccess.file_exists(target) and DirAccess.remove_absolute(target) != OK:
 			return false
 	return existed
@@ -214,6 +276,9 @@ func _save_path(world_id: String) -> String:
 
 func _backup_path(world_id: String) -> String:
 	return _save_path(world_id) + ".bak"
+
+func _readable_thumbnail_path(world_id: String) -> String:
+	return get_thumbnail_path(world_id) if load_world_thumbnail(world_id) != null else ""
 
 func _is_safe_world_id(world_id: String) -> bool:
 	if world_id.length() != 36:
