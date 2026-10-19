@@ -29,6 +29,12 @@ For seed `12345`, the headless benchmark reported these visible instance counts 
 
 The profiles limit rendered decorative instances. They do not reduce first-generation CPU work or the memory used to hold the complete instance sets. GPU and frame-rate gains still need measurement in a graphical build.
 
+## Distance-based decoration LOD
+
+Version 2 also reduces the visible instance count as the player moves away from an island's conservative terrain radius. Ground cover thins between 120 and 420 meters beyond that radius, decorative stones between 200 and 500 meters, and paired trunks and canopies between 380 and 700 meters. The count follows a smooth curve and is refreshed after roughly 10 meters of player movement. Profile scaling and distance scaling multiply, while the original transforms remain available for approaching the island again or reloading it. Collectible trees and rocks, animals, caves, terrain, and collision do not use this cosmetic LOD.
+
+The project's Compatibility renderer does not provide the same smooth visibility-range fade as Forward+ ([Godot 4.3 GeometryInstance3D documentation](https://docs.godotengine.org/en/4.3/classes/class_geometryinstance3d.html)), so the implementation uses gradual instance-count changes rather than a visibility-range fade. Headless tests verify counts, return-to-near behavior, quality-profile interaction, and deterministic transforms; visual transitions and FPS still need inspection in a graphical build.
+
 ## Progressive island streaming
 
 Version 2 now loads the player's current chunk and any island whose terrain reaches the player immediately. Empty nearby chunks also load immediately. Other island chunks enter a nearest-first queue; the default budget is one distant chunk per frame through `max_distant_chunks_per_frame`. Moving away removes obsolete requests, and deactivating the world clears the queue. Diagnostics expose `pending_chunks` so stalls and incomplete streaming can be observed.

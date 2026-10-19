@@ -13,6 +13,12 @@ const DECORATION_QUALITY_SCALE := {
 	"medium": {"ForestTrunks": 0.8, "ForestCanopies": 0.8, "GroundCover": 0.65, "StoneCover": 0.8},
 	"high": {"ForestTrunks": 1.0, "ForestCanopies": 1.0, "GroundCover": 1.0, "StoneCover": 1.0}
 }
+const DECORATION_LOD_BANDS := {
+	"ForestTrunks": Vector2(380.0, 700.0),
+	"ForestCanopies": Vector2(380.0, 700.0),
+	"GroundCover": Vector2(120.0, 420.0),
+	"StoneCover": Vector2(200.0, 500.0)
+}
 
 @export_range(1, 4, 1) var max_distant_chunks_per_frame: int = 1
 var _decoration_quality := "high"
@@ -35,6 +41,7 @@ var _cache_order: Array[String] = []
 var _cache_hits: Dictionary = {"terrain": 0, "collision": 0, "details": 0}
 var _pending_chunks: Array[Vector2i] = []
 var _last_stream_focus := Vector3.INF
+var _last_lod_focus := Vector3.INF
 
 func _init() -> void:
 	generation_version = GENERATION_VERSION
@@ -42,6 +49,7 @@ func _init() -> void:
 func apply_seed(new_seed: int) -> void:
 	_pending_chunks.clear()
 	_last_stream_focus = Vector3.INF
+	_last_lod_focus = Vector3.INF
 	_fields.clear()
 	_coast_cache.clear()
 	_generation_msec = 0
@@ -51,6 +59,7 @@ func apply_seed(new_seed: int) -> void:
 func _rebuild_layout() -> void:
 	_pending_chunks.clear()
 	_last_stream_focus = Vector3.INF
+	_last_lod_focus = Vector3.INF
 	_island_cache.clear()
 	_cache_order.clear()
 	_cache_hits = {"terrain": 0, "collision": 0, "details": 0}
@@ -701,8 +710,10 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 			visual.name = label
 			visual.multimesh = details[label]["multimesh"]
 			visual.material_override = details[label]["material"]
+			visual.set_meta("island_index", int(descriptor["index"]))
+			visual.set_meta("detail_label", label)
 			chunk.add_child(visual)
-			_set_visual_quality(visual)
+			_set_visual_quality(visual, descriptor, _get_focus_position())
 		_cache_hits["details"] += 1
 		_touch_cached_island(cache_key)
 		return
@@ -774,32 +785,48 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 	rock_mesh.height = 1.0
 	rock_mesh.radial_segments = 6
 	rock_mesh.rings = 2
-	_add_instances(chunk, "ForestTrunks", trunk_mesh, Color("#654733"), trunks)
-	_add_instances(chunk, "ForestCanopies", canopy_mesh, Color("#315f38"), canopies)
-	_add_instances(chunk, "GroundCover", shrub_mesh, Color("#597746"), ground)
-	_add_instances(chunk, "StoneCover", rock_mesh, Color("#757b78"), rocks)
+	var visuals := {
+		"ForestTrunks": _add_instances(chunk, "ForestTrunks", trunk_mesh, Color("#654733"), trunks),
+		"ForestCanopies": _add_instances(chunk, "ForestCanopies", canopy_mesh, Color("#315f38"), canopies),
+		"GroundCover": _add_instances(chunk, "GroundCover", shrub_mesh, Color("#597746"), ground),
+		"StoneCover": _add_instances(chunk, "StoneCover", rock_mesh, Color("#757b78"), rocks)
+	}
 	var details := {}
-	for label in ["ForestTrunks", "ForestCanopies", "GroundCover", "StoneCover"]:
-		var visual: MultiMeshInstance3D = chunk.get_node_or_null(label)
+	var focus := _get_focus_position()
+	for label in visuals:
+		var visual: MultiMeshInstance3D = visuals[label]
 		if visual:
-			_set_visual_quality(visual)
+			visual.set_meta("island_index", int(descriptor["index"]))
+			visual.set_meta("detail_label", label)
+			_set_visual_quality(visual, descriptor, focus)
 			details[label] = {"multimesh": visual.multimesh, "material": visual.material_override}
 	_remember_island_resource(cache_key, "details", details)
 	_phase_msec["decoration"] += Time.get_ticks_msec() - started
 
 func _apply_decoration_quality() -> void:
+	var focus := _get_focus_position()
 	for chunk in loaded_chunks.values():
 		if not is_instance_valid(chunk):
 			continue
 		for child in chunk.get_children():
 			if child is MultiMeshInstance3D:
-				_set_visual_quality(child)
+				var index := int(child.get_meta("island_index", -1))
+				if index >= 0 and index < island_descriptors.size():
+					_set_visual_quality(child, island_descriptors[index], focus)
 
-func _set_visual_quality(visual: MultiMeshInstance3D) -> void:
+func _set_visual_quality(visual: MultiMeshInstance3D, descriptor: Dictionary, focus: Vector3) -> void:
 	if not visual.multimesh:
 		return
-	var scale := float(DECORATION_QUALITY_SCALE[_decoration_quality].get(visual.name, 1.0))
-	visual.multimesh.visible_instance_count = roundi(float(visual.multimesh.instance_count) * scale)
+	var label := String(visual.get_meta("detail_label", visual.name))
+	if not DECORATION_LOD_BANDS.has(label):
+		return
+	var band: Vector2 = DECORATION_LOD_BANDS[label]
+	var center: Vector3 = descriptor["center"]
+	var distance := Vector2(focus.x - center.x, focus.z - center.z).length()
+	var offshore := maxf(0.0, distance - _island_reach(descriptor))
+	var lod_scale := 1.0 - smoothstep(band.x, band.y, offshore)
+	var quality_scale := float(DECORATION_QUALITY_SCALE[_decoration_quality][label])
+	visual.multimesh.visible_instance_count = roundi(float(visual.multimesh.instance_count) * quality_scale * lod_scale)
 
 func _vegetation_density(descriptor: Dictionary, point: Vector2, biome: String) -> float:
 	var base: float
@@ -818,9 +845,9 @@ func _vegetation_density(descriptor: Dictionary, point: Vector2, biome: String) 
 		mask *= 0.14
 	return clampf(base * mask * float(descriptor["forest_density"]), 0.0, 1.0)
 
-func _add_instances(parent: Node3D, label: String, mesh: Mesh, color: Color, transforms: Array[Transform3D]) -> void:
+func _add_instances(parent: Node3D, label: String, mesh: Mesh, color: Color, transforms: Array[Transform3D]) -> MultiMeshInstance3D:
 	if transforms.is_empty():
-		return
+		return null
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
@@ -835,6 +862,7 @@ func _add_instances(parent: Node3D, label: String, mesh: Mesh, color: Color, tra
 	material.roughness = 1.0
 	visual.material_override = material
 	parent.add_child(visual)
+	return visual
 
 func _refresh_streaming() -> void:
 	if generation_version == 1:
@@ -908,11 +936,16 @@ func _process(_delta: float) -> void:
 		var chunk_key: Vector2i = _pending_chunks.pop_front()
 		if not loaded_chunks.has(chunk_key):
 			_load_chunk(chunk_key)
+	var focus := _get_focus_position()
+	if Vector2(focus.x - _last_lod_focus.x, focus.z - _last_lod_focus.z).length_squared() >= 100.0:
+		_apply_decoration_quality()
+		_last_lod_focus = focus
 
 func set_world_active(active: bool) -> void:
 	if not active:
 		_pending_chunks.clear()
 		_last_stream_focus = Vector3.INF
+		_last_lod_focus = Vector3.INF
 	super.set_world_active(active)
 
 func get_generation_diagnostics() -> Dictionary:
@@ -923,16 +956,17 @@ func get_generation_diagnostics() -> Dictionary:
 			continue
 		for node in chunk.get_children():
 			if node is MultiMeshInstance3D:
+				var label := String(node.get_meta("detail_label", node.name))
 				var amount: int = node.multimesh.instance_count
 				var visible_amount: int = node.multimesh.visible_instance_count
 				if visible_amount < 0:
 					visible_amount = amount
-				if node.name == "ForestCanopies": counts["forest"] += amount
-				if node.name == "GroundCover": counts["ground"] += amount
-				if node.name == "StoneCover": counts["rocks"] += amount
-				if node.name == "ForestCanopies": rendered["forest"] += visible_amount
-				if node.name == "GroundCover": rendered["ground"] += visible_amount
-				if node.name == "StoneCover": rendered["rocks"] += visible_amount
+				if label == "ForestCanopies": counts["forest"] += amount
+				if label == "GroundCover": counts["ground"] += amount
+				if label == "StoneCover": counts["rocks"] += amount
+				if label == "ForestCanopies": rendered["forest"] += visible_amount
+				if label == "GroundCover": rendered["ground"] += visible_amount
+				if label == "StoneCover": rendered["rocks"] += visible_amount
 			if node is StaticBody3D:
 				for child in node.get_children():
 					if child.name.begins_with("Cave_"):
