@@ -8,6 +8,22 @@ const FOREST_CANDIDATES := 820
 const GROUND_CANDIDATES := 1250
 const ROCK_CANDIDATES := 150
 const CACHED_ISLAND_LIMIT := 2
+const DECORATION_QUALITY_SCALE := {
+	"low": {"ForestTrunks": 0.5, "ForestCanopies": 0.5, "GroundCover": 0.35, "StoneCover": 0.55},
+	"medium": {"ForestTrunks": 0.8, "ForestCanopies": 0.8, "GroundCover": 0.65, "StoneCover": 0.8},
+	"high": {"ForestTrunks": 1.0, "ForestCanopies": 1.0, "GroundCover": 1.0, "StoneCover": 1.0}
+}
+
+var _decoration_quality := "high"
+@export_enum("low", "medium", "high") var decoration_quality: String:
+	get:
+		return _decoration_quality
+	set(value):
+		if not DECORATION_QUALITY_SCALE.has(value):
+			return
+		_decoration_quality = value
+		if is_inside_tree() and generation_version == GENERATION_VERSION:
+			_apply_decoration_quality()
 
 var _fields: Dictionary = {}
 var _coast_cache: Dictionary = {}
@@ -664,6 +680,7 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 			visual.multimesh = details[label]["multimesh"]
 			visual.material_override = details[label]["material"]
 			chunk.add_child(visual)
+			_set_visual_quality(visual)
 		_cache_hits["details"] += 1
 		_touch_cached_island(cache_key)
 		return
@@ -743,9 +760,24 @@ func _spawn_tropical_details(chunk: Node3D, descriptor: Dictionary) -> void:
 	for label in ["ForestTrunks", "ForestCanopies", "GroundCover", "StoneCover"]:
 		var visual: MultiMeshInstance3D = chunk.get_node_or_null(label)
 		if visual:
+			_set_visual_quality(visual)
 			details[label] = {"multimesh": visual.multimesh, "material": visual.material_override}
 	_remember_island_resource(cache_key, "details", details)
 	_phase_msec["decoration"] += Time.get_ticks_msec() - started
+
+func _apply_decoration_quality() -> void:
+	for chunk in loaded_chunks.values():
+		if not is_instance_valid(chunk):
+			continue
+		for child in chunk.get_children():
+			if child is MultiMeshInstance3D:
+				_set_visual_quality(child)
+
+func _set_visual_quality(visual: MultiMeshInstance3D) -> void:
+	if not visual.multimesh:
+		return
+	var scale := float(DECORATION_QUALITY_SCALE[_decoration_quality].get(visual.name, 1.0))
+	visual.multimesh.visible_instance_count = roundi(float(visual.multimesh.instance_count) * scale)
 
 func _vegetation_density(descriptor: Dictionary, point: Vector2, biome: String) -> float:
 	var base: float
@@ -810,17 +842,24 @@ func _refresh_streaming() -> void:
 
 func get_generation_diagnostics() -> Dictionary:
 	var counts := {"forest": 0, "ground": 0, "rocks": 0, "caves": 0}
+	var rendered := {"forest": 0, "ground": 0, "rocks": 0}
 	for chunk in loaded_chunks.values():
 		if not is_instance_valid(chunk):
 			continue
 		for node in chunk.get_children():
 			if node is MultiMeshInstance3D:
 				var amount: int = node.multimesh.instance_count
+				var visible_amount: int = node.multimesh.visible_instance_count
+				if visible_amount < 0:
+					visible_amount = amount
 				if node.name == "ForestCanopies": counts["forest"] += amount
 				if node.name == "GroundCover": counts["ground"] += amount
 				if node.name == "StoneCover": counts["rocks"] += amount
+				if node.name == "ForestCanopies": rendered["forest"] += visible_amount
+				if node.name == "GroundCover": rendered["ground"] += visible_amount
+				if node.name == "StoneCover": rendered["rocks"] += visible_amount
 			if node is StaticBody3D:
 				for child in node.get_children():
 					if child.name.begins_with("Cave_"):
 						counts["caves"] += 1
-	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "instances": counts, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}
+	return {"seed": seed, "version": generation_version, "islands": island_descriptors.size(), "chunks": loaded_chunks.size(), "instances": counts, "rendered_instances": rendered, "decoration_quality": _decoration_quality, "generation_ms": _generation_msec, "phase_ms": _phase_msec.duplicate(), "cache_entries": _island_cache.size(), "cache_hits": _cache_hits.duplicate()}

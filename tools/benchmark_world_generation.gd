@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Usage: SURVIVE_TEST_SEED=12345 godot --headless --path . --script res://tools/benchmark_world_generation.gd
+## Usage: SURVIVE_TEST_SEED=12345 SURVIVE_DECORATION_QUALITY=low godot --headless --path . --script res://tools/benchmark_world_generation.gd
 ## Headless measurements cover CPU generation and process memory, not GPU draw calls or FPS.
 func _init() -> void:
 	call_deferred("_run")
@@ -16,6 +16,9 @@ func _run() -> void:
 	var generator = generator_script.new()
 	generator.generation_version = version
 	generator.seed = seed_value
+	var quality := OS.get_environment("SURVIVE_DECORATION_QUALITY")
+	if not quality.is_empty():
+		generator.decoration_quality = quality
 	generator.stream_radius_chunks = 0
 	var started := Time.get_ticks_msec()
 	root.add_child(generator)

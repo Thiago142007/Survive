@@ -13,3 +13,17 @@ The latest measurements used the same seed and headless command in five fresh pr
 The v2 cache retains the terrain `ArrayMesh` and four surface decoration `MultiMesh` resources for at most two recently used islands. The small `CaveFormations` group is rebuilt on each load. Resource and animal nodes are rebuilt and restored from persistent state on each load. The cache is cleared when the layout is rebuilt, including a seed change. Its effect is on revisiting an island; first generation still runs on the main thread and remains slower than v1 because v2 creates more geography and decoration.
 
 In one separate v2 measurement, process static memory rose by 19,810,196 bytes when loading the central chunk and was 1,405,280 bytes above its pre-load value after the generator was freed. This is process-level memory, not an isolated measurement of the cache. Headless execution cannot provide representative FPS or GPU draw-call counts.
+
+## Visual quality profiles
+
+Version 2 exposes `decoration_quality` on the island generator as `low`, `medium`, or `high` (default). It can be changed while a world is running. The profile changes `MultiMesh.visible_instance_count` for decorative trees, ground cover, and stones. Tree trunks and canopies use the same fraction, so they remain paired. All generated transforms stay in the same order; switching profiles or revisiting a cached island does not regenerate the world. Terrain, caves, collectible resources, animals, and save identifiers are unaffected. Version 1 keeps its existing rendering behavior.
+
+For seed `12345`, the headless benchmark reported these visible instance counts in the central island:
+
+| Profile | Forest trees | Ground cover | Decorative stones |
+| --- | ---: | ---: | ---: |
+| Low | 190 | 170 | 27 |
+| Medium | 304 | 315 | 39 |
+| High | 380 | 485 | 49 |
+
+The profiles limit rendered decorative instances. They do not reduce first-generation CPU work or the memory used to hold the complete instance sets. GPU and frame-rate gains still need measurement in a graphical build.
