@@ -42,8 +42,12 @@ func _run() -> void:
 			max_delta = maxf(max_delta, vertex.distance_to(expected_faces[face_offset]))
 			face_offset += 1
 	assert(face_offset == expected_faces.size() and max_delta <= 0.001, "As quatro partes devem cobrir exatamente o terreno")
-	await process_frame
+	var entity_stage_frames := 0
+	while not generator.is_spawn_ready() and entity_stage_frames < 20:
+		await process_frame
+		entity_stage_frames += 1
 	assert(generator.is_spawn_ready(), "A ilha deve ficar jogavel apos os recursos")
+	assert(entity_stage_frames > 1, "A criacao de recursos deve ser distribuida entre frames")
 	var resource_count := 0
 	for node in chunk.get_children():
 		if node.has_method("get_save_state"):

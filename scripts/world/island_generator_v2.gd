@@ -10,6 +10,7 @@ const GROUND_CANDIDATES := 1250
 const ROCK_CANDIDATES := 150
 const CACHED_ISLAND_LIMIT := 2
 const COLLISION_PART_COUNT := 4
+const RESOURCE_ATTACH_BUDGET := 12
 const DECORATION_QUALITY_SCALE := {
 	"low": {"ForestTrunks": 0.5, "ForestCanopies": 0.5, "GroundCover": 0.35, "StoneCover": 0.55},
 	"medium": {"ForestTrunks": 0.8, "ForestCanopies": 0.8, "GroundCover": 0.65, "StoneCover": 0.8},
@@ -69,6 +70,7 @@ var _spawn_target_chunk := Vector2i.ZERO
 var _attaching_background := false
 var _pending_attachment_chunks: Array[Vector2i] = []
 var _attachment_stage: Dictionary = {}
+var _attachment_resource_cursors: Dictionary = {}
 
 func _init() -> void:
 	generation_version = GENERATION_VERSION
@@ -170,6 +172,7 @@ func _cancel_pending_builds() -> void:
 	_attaching_background = false
 	_pending_attachment_chunks.clear()
 	_attachment_stage.clear()
+	_attachment_resource_cursors.clear()
 	_build_queue.clear()
 	_wanted_chunks.clear()
 	_prepared_terrain_arrays.clear()
@@ -192,6 +195,7 @@ func _unload_chunk(chunk_key: Vector2i) -> void:
 			_prepared_collision_faces.erase(island_id)
 			_pending_collision_parts.erase(island_id)
 			_prepared_resource_plans.erase(island_id)
+			_attachment_resource_cursors.erase(island_id)
 	super._unload_chunk(chunk_key)
 
 func _request_chunk(chunk_key: Vector2i) -> void:
@@ -286,7 +290,9 @@ func _process_attachment_stage() -> bool:
 	if not loaded_chunks.has(chunk_key):
 		for descriptor in island_descriptors:
 			if descriptor["chunk"] == chunk_key:
-				_prepared_resource_plans.erase(String(descriptor["id"]))
+				var island_id := String(descriptor["id"])
+				_prepared_resource_plans.erase(island_id)
+				_attachment_resource_cursors.erase(island_id)
 		_pending_attachment_chunks.pop_front()
 		_attachment_stage.erase(chunk_key)
 		return false
@@ -331,11 +337,39 @@ func _process_attachment_stage() -> bool:
 		_max_background_collision_piece_msec = maxi(_max_background_collision_piece_msec, elapsed)
 		_generation_msec += elapsed
 	else:
+		var resource_budget := RESOURCE_ATTACH_BUDGET
+		var resources_pending := false
 		for descriptor in island_descriptors:
 			if descriptor["chunk"] != chunk_key:
 				continue
-			_spawn_resources(chunk, descriptor)
-			_spawn_fauna(chunk, descriptor)
+			var island_id := String(descriptor["id"])
+			if not _prepared_resource_plans.has(island_id):
+				_prepared_resource_plans[island_id] = _build_resource_plan(descriptor)
+			var plan: Array = _prepared_resource_plans[island_id]
+			var cursor := int(_attachment_resource_cursors.get(island_id, 0))
+			if cursor < plan.size():
+				var next_cursor := mini(plan.size(), cursor + resource_budget)
+				var resource_started := Time.get_ticks_msec()
+				_instantiate_resource_plan_range(chunk, descriptor, plan, cursor, next_cursor)
+				var elapsed := Time.get_ticks_msec() - resource_started
+				_phase_msec["resources"] += elapsed
+				resource_budget -= next_cursor - cursor
+				cursor = next_cursor
+				_attachment_resource_cursors[island_id] = cursor
+			if cursor < plan.size():
+				resources_pending = true
+				if resource_budget == 0:
+					break
+		if resources_pending:
+			_last_background_entities_msec += Time.get_ticks_msec() - started
+			_generation_msec += Time.get_ticks_msec() - started
+			return true
+		for descriptor in island_descriptors:
+			if descriptor["chunk"] == chunk_key:
+				var island_id := String(descriptor["id"])
+				_prepared_resource_plans.erase(island_id)
+				_attachment_resource_cursors.erase(island_id)
+				_spawn_fauna(chunk, descriptor)
 		_spawn_migrated_animals(chunk_key, chunk)
 		if chunk_key == _spawn_target_chunk:
 			_spawn_island_ready = true
@@ -659,6 +693,18 @@ func _inside_cave_opening(descriptor: Dictionary, point: Vector2, padding: float
 			return true
 	return false
 
+func _inside_cave_mesh_opening(descriptor: Dictionary, point: Vector2, padding: float = 0.0) -> bool:
+	# The terrain aperture follows the tunnel footprint. Resource exclusion uses
+	# the wider approach area above, so collectible positions remain unchanged.
+	for cave in descriptor["caves"]:
+		var relative: Vector2 = point - cave["mouth"]
+		var direction: Vector2 = cave["direction"]
+		var along := relative.dot(direction)
+		var across := absf(relative.cross(direction))
+		if along >= -1.0 - padding and along <= 9.0 + padding and across < float(cave["width"]) * 0.78 + padding:
+			return true
+	return false
+
 func _make_terrain_mesh(descriptor: Dictionary) -> ArrayMesh:
 	if generation_version == 1:
 		return super._make_terrain_mesh(descriptor)
@@ -719,7 +765,7 @@ func _build_terrain_arrays(descriptor: Dictionary) -> Array:
 			var c := a + row_size
 			var d := c + 1
 			var center := Vector2((vertices[a].x + vertices[d].x) * 0.5, (vertices[a].z + vertices[d].z) * 0.5)
-			if not _inside_cave_opening(descriptor, center, step * 0.75):
+			if not _inside_cave_mesh_opening(descriptor, center, step * 0.75):
 				indices.append(a)
 				indices.append(b)
 				indices.append(c)
@@ -729,7 +775,7 @@ func _build_terrain_arrays(descriptor: Dictionary) -> Array:
 				continue
 			# Only the cells around a cave need finer triangles. Their border vertices
 			# interpolate the original cell, so adjacent coarse cells stay connected.
-			var subdivisions := 4
+			var subdivisions := 8
 			var patch_start := vertices.size()
 			for patch_z in range(subdivisions + 1):
 				var v := float(patch_z) / float(subdivisions)
@@ -749,7 +795,7 @@ func _build_terrain_arrays(descriptor: Dictionary) -> Array:
 					var local_c := local_a + subdivisions + 1
 					var local_d := local_c + 1
 					var local_center := Vector2((vertices[local_a].x + vertices[local_d].x) * 0.5, (vertices[local_a].z + vertices[local_d].z) * 0.5)
-					if _inside_cave_opening(descriptor, local_center, step / float(subdivisions) * 0.72):
+					if _inside_cave_mesh_opening(descriptor, local_center, 0.5):
 						continue
 					indices.append(local_a)
 					indices.append(local_b)
@@ -883,9 +929,10 @@ func _add_cave(island: StaticBody3D, descriptor: Dictionary, cave: Dictionary, c
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("#595e5b")
+	material.albedo_color = Color("#484d4a")
 	material.roughness = 1.0
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mesh.surface_set_material(0, material)
 	var body := StaticBody3D.new()
 	body.name = "Cave_%d" % cave_index
@@ -973,6 +1020,21 @@ func _build_resource_plan(descriptor: Dictionary) -> Array[Dictionary]:
 		plan.append({"type": "rock", "index": index, "point": point, "rotation": rock_rng.randf_range(0.0, TAU), "scale": rock_rng.randf_range(0.75, 1.45)})
 	return plan
 
+func _instantiate_resource_plan_range(chunk: Node3D, descriptor: Dictionary, plan: Array, first: int, last: int) -> void:
+	var tree_scene: PackedScene = load(RESOURCE_SCENE_PATHS["tree"])
+	var rock_scene: PackedScene = load(RESOURCE_SCENE_PATHS["rock"])
+	var center: Vector3 = descriptor["center"]
+	for plan_index in range(first, last):
+		var placement: Dictionary = plan[plan_index]
+		var resource := (tree_scene if placement["type"] == "tree" else rock_scene).instantiate() as Node3D
+		var resource_id := _persistent_id(descriptor, placement["type"], int(placement["index"]))
+		resource.set("persistent_id", resource_id)
+		resource.position = center + placement["point"]
+		resource.rotation.y = placement["rotation"]
+		resource.scale = Vector3.ONE * placement["scale"]
+		chunk.add_child(resource)
+		_apply_saved_object_state(resource, "resources", resource_id)
+
 func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
 	if generation_version == 1:
 		super._spawn_resources(chunk, descriptor)
@@ -983,18 +1045,7 @@ func _spawn_resources(chunk: Node3D, descriptor: Dictionary) -> void:
 	var island_id := String(descriptor["id"])
 	var plan: Array = _prepared_resource_plans[island_id] if _prepared_resource_plans.has(island_id) else _build_resource_plan(descriptor)
 	_prepared_resource_plans.erase(island_id)
-	var tree_scene: PackedScene = load(RESOURCE_SCENE_PATHS["tree"])
-	var rock_scene: PackedScene = load(RESOURCE_SCENE_PATHS["rock"])
-	var center: Vector3 = descriptor["center"]
-	for placement in plan:
-		var resource := (tree_scene if placement["type"] == "tree" else rock_scene).instantiate() as Node3D
-		var resource_id := _persistent_id(descriptor, placement["type"], int(placement["index"]))
-		resource.set("persistent_id", resource_id)
-		resource.position = center + placement["point"]
-		resource.rotation.y = placement["rotation"]
-		resource.scale = Vector3.ONE * placement["scale"]
-		chunk.add_child(resource)
-		_apply_saved_object_state(resource, "resources", resource_id)
+	_instantiate_resource_plan_range(chunk, descriptor, plan, 0, plan.size())
 	_phase_msec["resources"] += Time.get_ticks_msec() - started
 
 func _spawn_fauna(chunk: Node3D, descriptor: Dictionary) -> void:
