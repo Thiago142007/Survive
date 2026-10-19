@@ -15,6 +15,8 @@ const BUTTON_TEXTURES := {
 }
 const BUTTON_HOVER_OFFSET := 12.0
 const BUTTON_HOVER_DURATION := 0.16
+const WORLD_SAVE_CARD_SCENE: PackedScene = preload("res://scenes/ui/world_save_card.tscn")
+const WORLD_THUMBNAIL_PLACEHOLDER: Texture2D = preload("res://assets/ui/world_thumbnail_placeholder.png")
 
 @onready var main_actions: VBoxContainer = $MainActions
 @onready var create_world_panel: Panel = $CreateWorldPanel
@@ -26,16 +28,18 @@ const BUTTON_HOVER_DURATION := 0.16
 
 var title_hotspots: Control
 var save_list_panel: PanelContainer
-var save_items: ItemList
-var load_button: Button
-var delete_button: Button
+var card_list: VBoxContainer
+var world_scroll: ScrollContainer
+var empty_saves_label: Label
+var world_cards: Array[WorldSaveCard] = []
+var new_world_button: Button
 var delete_confirmation: ConfirmationDialog
 var character_option: OptionButton
 var _settings_volume: HSlider
 var _settings_mode: OptionButton
 var _settings_resolution: OptionButton
-var _save_ids: Array[String] = []
-var _save_loadable: Array[bool] = []
+var _pending_delete_world_id := ""
+var _pending_delete_world_name := ""
 var _return_to_saves := true
 var _settings_panel: Control
 var _button_tweens: Dictionary = {}
@@ -60,7 +64,7 @@ func _ready() -> void:
 	_create_character_selector()
 	_create_settings_panel()
 	_layout_title_hotspots()
-	get_viewport().size_changed.connect(_layout_title_hotspots)
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	get_viewport().set_input_as_handled()
 
 func show_title() -> void:
@@ -170,6 +174,15 @@ func _layout_title_hotspots() -> void:
 		enabled_buttons[index].focus_neighbor_top = enabled_buttons[(index - 1 + enabled_buttons.size()) % enabled_buttons.size()].get_path()
 		enabled_buttons[index].focus_neighbor_bottom = enabled_buttons[(index + 1) % enabled_buttons.size()].get_path()
 
+func _on_viewport_size_changed() -> void:
+	_layout_title_hotspots()
+	if is_instance_valid(save_list_panel):
+		_layout_secondary_panel(save_list_panel)
+	if is_instance_valid(create_world_panel):
+		_layout_secondary_panel(create_world_panel)
+	if is_instance_valid(_settings_panel):
+		_layout_secondary_panel(_settings_panel)
+
 func _animate_title_button(button: TextureButton, hovered: bool) -> void:
 	if not is_instance_valid(button):
 		return
@@ -200,38 +213,45 @@ func _create_save_list_panel() -> void:
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 	var header := Label.new()
-	header.text = "SINGLEPLAYER"
+	header.text = "ESCOLHA SEU MUNDO"
 	header.add_theme_font_size_override("font_size", 26)
 	header.add_theme_color_override("font_color", Color("#ead2bd"))
 	column.add_child(header)
 	var caption := Label.new()
-	caption.text = "Escolha um mundo para continuar ou crie uma nova ilha."
+	caption.text = "Continue de onde parou ou crie uma nova ilha."
 	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.add_theme_color_override("font_color", Color("#bfa89a"))
 	column.add_child(caption)
-	save_items = ItemList.new()
-	save_items.name = "WorldSaves"
-	save_items.custom_minimum_size = Vector2(390, 290)
-	save_items.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	save_items.item_selected.connect(_on_save_selected)
-	column.add_child(save_items)
+	world_scroll = ScrollContainer.new()
+	world_scroll.name = "WorldScroll"
+	world_scroll.custom_minimum_size = Vector2(0, 180)
+	world_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	world_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(world_scroll)
+	card_list = VBoxContainer.new()
+	card_list.name = "WorldCards"
+	card_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_list.add_theme_constant_override("separation", 10)
+	world_scroll.add_child(card_list)
+	empty_saves_label = Label.new()
+	empty_saves_label.name = "EmptySavesPrompt"
+	empty_saves_label.text = "Ainda não há mundos salvos. Crie sua primeira ilha."
+	empty_saves_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	empty_saves_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	empty_saves_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	empty_saves_label.add_theme_color_override("font_color", Color("#c7a68f"))
+	empty_saves_label.visible = false
+	column.add_child(empty_saves_label)
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
 	column.add_child(actions)
-	var new_button := _make_action_button("Novo mundo")
-	new_button.pressed.connect(_on_new_world_pressed)
-	actions.add_child(new_button)
-	load_button = _make_action_button("Carregar")
-	load_button.disabled = true
-	load_button.pressed.connect(_on_load_selected_pressed)
-	actions.add_child(load_button)
-	delete_button = _make_action_button("Excluir")
-	delete_button.disabled = true
-	delete_button.pressed.connect(_on_delete_selected_pressed)
-	actions.add_child(delete_button)
+	new_world_button = _make_action_button("Novo mundo")
+	new_world_button.name = "NewWorldButton"
+	new_world_button.pressed.connect(_on_new_world_pressed)
+	actions.add_child(new_world_button)
 	var back := _make_action_button("Voltar")
 	back.pressed.connect(_on_save_list_back_pressed)
-	column.add_child(back)
+	actions.add_child(back)
 	save_list_panel.visible = false
 	_layout_secondary_panel(save_list_panel)
 
@@ -239,7 +259,7 @@ func _create_delete_confirmation() -> void:
 	delete_confirmation = ConfirmationDialog.new()
 	delete_confirmation.name = "DeleteSaveConfirmation"
 	delete_confirmation.title = "Excluir mundo?"
-	delete_confirmation.dialog_text = "Esta ação remove o save selecionado."
+	delete_confirmation.dialog_text = "Esta ação remove o mundo selecionado."
 	delete_confirmation.confirmed.connect(_on_delete_confirmed)
 	add_child(delete_confirmation)
 
@@ -262,10 +282,10 @@ func _create_settings_panel() -> void:
 	add_child(_settings_panel)
 	var margin := MarginContainer.new()
 	for edge in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_%s" % edge, 24 if edge in ["left", "right"] else 20)
+		margin.add_theme_constant_override("margin_%s" % edge, 24 if edge in ["left", "right"] else 8)
 	_settings_panel.add_child(margin)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
+	column.add_theme_constant_override("separation", 6)
 	margin.add_child(column)
 	var title := Label.new()
 	title.text = "CONFIGS"
@@ -279,6 +299,7 @@ func _create_settings_panel() -> void:
 	_settings_volume.min_value = 0.0
 	_settings_volume.max_value = 1.0
 	_settings_volume.step = 0.01
+	_settings_volume.custom_minimum_size = Vector2(0, 18)
 	_settings_volume.focus_mode = Control.FOCUS_ALL
 	column.add_child(_settings_volume)
 	var mode_label := Label.new()
@@ -288,6 +309,7 @@ func _create_settings_panel() -> void:
 	_settings_mode.add_item("Janela", 0)
 	_settings_mode.add_item("Sem bordas", 1)
 	_settings_mode.add_item("Tela cheia", 2)
+	_settings_mode.custom_minimum_size = Vector2(0, 32)
 	_settings_mode.focus_mode = Control.FOCUS_ALL
 	column.add_child(_settings_mode)
 	var resolution_label := Label.new()
@@ -296,14 +318,17 @@ func _create_settings_panel() -> void:
 	_settings_resolution = OptionButton.new()
 	for resolution in _settings_manager().SUPPORTED_RESOLUTIONS:
 		_settings_resolution.add_item(resolution)
+	_settings_resolution.custom_minimum_size = Vector2(0, 32)
 	_settings_resolution.focus_mode = Control.FOCUS_ALL
 	column.add_child(_settings_resolution)
 	var actions := HBoxContainer.new()
 	column.add_child(actions)
 	var save_button := _make_action_button("Aplicar e salvar")
+	save_button.custom_minimum_size.y = 36
 	save_button.pressed.connect(_on_settings_save_pressed)
 	actions.add_child(save_button)
 	var back_button := _make_action_button("Voltar")
+	back_button.custom_minimum_size.y = 36
 	back_button.pressed.connect(_on_settings_back_pressed)
 	actions.add_child(back_button)
 	_settings_panel.visible = false
@@ -342,6 +367,44 @@ func _on_settings_back_pressed() -> void:
 	_settings_panel.visible = false
 	$TitleHotspots.visible = true
 
+func _on_world_card_play_requested(world_id: String) -> void:
+	var save_manager := _save_manager()
+	var result: Dictionary = save_manager.read_save(world_id)
+	if not result.get("ok", false):
+		_show_feedback(String(result.get("error", "Save inválido")))
+		return
+	var main_config = get_node_or_null("/root/Main")
+	if not main_config or not main_config.is_save_snapshot_supported(result["data"]):
+		_show_feedback("Este save está incompleto, corrompido ou não é compatível com esta versão.")
+		return
+	if bool(result.get("recovered_from_backup", false)):
+		var recovered_id: String = save_manager.create_save(result["data"])
+		if recovered_id.is_empty():
+			_show_feedback("Não foi possível criar uma cópia segura do backup recuperado.")
+			return
+		world_id = recovered_id
+		result["data"]["world_id"] = recovered_id
+	if not main_config.start_world_from_save(result["data"]):
+		_show_feedback("Este save não é compatível com esta versão do jogo.")
+		return
+	save_manager.set_active_world(world_id)
+	visible = false
+
+func _on_world_card_delete_requested(world_id: String) -> void:
+	var card := get_world_card(world_id)
+	if card == null:
+		return
+	_pending_delete_world_id = world_id
+	_pending_delete_world_name = card.name_label.text
+	delete_confirmation.dialog_text = "Excluir “%s”? Esta ação não pode ser desfeita." % _pending_delete_world_name
+	delete_confirmation.popup_centered()
+
+func get_world_card(world_id: String) -> WorldSaveCard:
+	for card in world_cards:
+		if card.world_id == world_id:
+			return card
+	return null
+
 func _apply_panel_style(panel: Control) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.105, 0.075, 0.07, 0.96)
@@ -364,45 +427,66 @@ func _make_action_button(label: String) -> Button:
 	button.add_theme_stylebox_override("focus", _hotspot_style(Color("#4b3024"), Color("#f0ad70")))
 	return button
 
+func get_secondary_panel_rect(panel_kind: String, viewport_size: Vector2) -> Rect2:
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return Rect2()
+	var preferred_size := Vector2(960.0, 600.0)
+	match panel_kind:
+		"create", "world_creation":
+			preferred_size = Vector2(520.0, 580.0)
+		"settings":
+			preferred_size = Vector2(520.0, 500.0)
+		"saves", "save_selection", "singleplayer":
+			preferred_size = Vector2(960.0, 600.0)
+		_:
+			return Rect2()
+	var available_size := Vector2(maxf(0.0, viewport_size.x - 32.0), maxf(0.0, viewport_size.y - 32.0))
+	var panel_size := Vector2(minf(preferred_size.x, available_size.x), minf(preferred_size.y, available_size.y))
+	return Rect2((viewport_size - panel_size) * 0.5, panel_size)
+
 func _layout_secondary_panel(panel: Control) -> void:
-	var size := get_viewport().get_visible_rect().size
-	panel.position = Vector2(size.x * 0.62, size.y * 0.10)
-	panel.size = Vector2(minf(480.0, size.x * 0.35), size.y * 0.80)
-	if panel == create_world_panel:
-		panel.position = Vector2(size.x * 0.62, size.y * 0.10)
-		panel.size = Vector2(minf(460.0, size.x * 0.35), size.y * 0.80)
+	var panel_kind := "settings"
+	if panel == save_list_panel:
+		panel_kind = "saves"
+	elif panel == create_world_panel:
+		panel_kind = "create"
+	var rect := get_secondary_panel_rect(panel_kind, get_viewport().get_visible_rect().size)
+	panel.position = rect.position
+	panel.size = rect.size
 
 func refresh_save_list() -> void:
-	if not is_instance_valid(save_items):
+	if not is_instance_valid(card_list):
 		return
-	save_items.clear()
-	_save_ids.clear()
-	_save_loadable.clear()
-	for save in _save_manager().list_saves():
+	for old_card in world_cards:
+		card_list.remove_child(old_card)
+		old_card.queue_free()
+	world_cards.clear()
+	var saves: Array = _save_manager().list_saves()
+	for save in saves:
 		var world_id := String(save.get("world_id", ""))
-		var loadable := bool(save.get("loadable", true))
-		var label := "%s\nSeed %d  •  %s  •  %s" % [String(save.get("name", "Meu mundo")), int(save.get("seed", 0)), String(save.get("difficulty", "normal")).capitalize(), String(save.get("saved_at", ""))]
-		if not loadable:
-			label = "Save indisponível\n%s" % String(save.get("error", "Versão incompatível"))
-		elif bool(save.get("recovered_from_backup", false)):
-			label += "  •  Recuperável do backup"
-		save_items.add_item(label)
-		_save_ids.append(world_id)
-		_save_loadable.append(loadable)
-	load_button.disabled = true
-	delete_button.disabled = true
-
-func _on_save_selected(index: int) -> void:
-	var valid := index >= 0 and index < _save_ids.size()
-	load_button.disabled = not valid or not _save_loadable[index]
-	delete_button.disabled = not valid
+		var thumbnail := _save_manager().load_world_thumbnail(world_id) as Texture2D
+		if thumbnail == null:
+			thumbnail = WORLD_THUMBNAIL_PLACEHOLDER
+		var card := WORLD_SAVE_CARD_SCENE.instantiate() as WorldSaveCard
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.configure(save, thumbnail)
+		card.play_requested.connect(_on_world_card_play_requested)
+		card.delete_requested.connect(_on_world_card_delete_requested)
+		card_list.add_child(card)
+		world_cards.append(card)
+	world_scroll.visible = not saves.is_empty()
+	empty_saves_label.visible = saves.is_empty()
 
 func _on_singleplayer_pressed() -> void:
 	refresh_save_list()
 	$TitleHotspots.visible = false
 	save_list_panel.visible = true
 	_layout_secondary_panel(save_list_panel)
-	save_items.grab_focus()
+	if world_cards.is_empty():
+		new_world_button.grab_focus()
+	else:
+		var first_card := world_cards[0]
+		(first_card.delete_button if first_card.play_button.disabled else first_card.play_button).grab_focus()
 
 func _on_multiplayer_pressed() -> void:
 	# Intentionally unavailable; the hotspot is disabled in the title menu.
@@ -451,43 +535,10 @@ func _on_start_pressed() -> void:
 		return
 	visible = false
 
-func _on_load_selected_pressed() -> void:
-	var selected := save_items.get_selected_items()
-	if selected.is_empty():
-		return
-	var world_id := _save_ids[selected[0]]
-	var save_manager := _save_manager()
-	var result: Dictionary = save_manager.read_save(world_id)
-	if not result.get("ok", false):
-		_show_feedback(String(result.get("error", "Save inválido")))
-		return
-	var main_config = get_node_or_null("/root/Main")
-	if not main_config or not main_config.is_save_snapshot_supported(result["data"]):
-		_show_feedback("Este save está incompleto, corrompido ou não é compatível com esta versão.")
-		return
-	if bool(result.get("recovered_from_backup", false)):
-		var recovered_id: String = save_manager.create_save(result["data"])
-		if recovered_id.is_empty():
-			_show_feedback("Não foi possível criar uma cópia segura do backup recuperado.")
-			return
-		world_id = recovered_id
-		result["data"]["world_id"] = recovered_id
-	if not main_config.start_world_from_save(result["data"]):
-		_show_feedback("Este save não é compatível com esta versão do jogo.")
-		return
-	save_manager.set_active_world(world_id)
-	visible = false
-
-func _on_delete_selected_pressed() -> void:
-	if save_items.get_selected_items().is_empty():
-		return
-	delete_confirmation.popup_centered()
-
 func _on_delete_confirmed() -> void:
-	var selected := save_items.get_selected_items()
-	if selected.is_empty():
+	if _pending_delete_world_id.is_empty():
 		return
-	var world_id := _save_ids[selected[0]]
+	var world_id := _pending_delete_world_id
 	var save_manager := _save_manager()
 	if save_manager.delete_save(world_id):
 		if save_manager.active_world_id == world_id:
@@ -495,6 +546,8 @@ func _on_delete_confirmed() -> void:
 		refresh_save_list()
 	else:
 		_show_feedback("Não foi possível excluir este mundo.")
+	_pending_delete_world_id = ""
+	_pending_delete_world_name = ""
 
 func _show_feedback(message: String) -> void:
 	var dialog := AcceptDialog.new()

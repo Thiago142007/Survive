@@ -49,37 +49,76 @@ func _run() -> void:
 	menu._on_settings_pressed()
 	if not _expect(menu._settings_panel.visible, "Configs hotspot must open independent settings controls"):
 		return
+	var settings_rect: Rect2 = menu.get_secondary_panel_rect("settings", menu.get_viewport().get_visible_rect().size)
+	if not _expect(menu._settings_panel.get_rect().is_equal_approx(settings_rect), "Settings panel must be centered in the viewport"):
+		return
 	menu._on_settings_back_pressed()
+	menu._on_new_world_pressed()
+	var create_rect: Rect2 = menu.get_secondary_panel_rect("create", menu.get_viewport().get_visible_rect().size)
+	if not _expect(menu.create_world_panel.get_rect().is_equal_approx(create_rect), "World creation panel must be centered in the viewport"):
+		return
+	menu._on_back_pressed()
 	var previous_save_dir: String = saves.save_directory
 	saves.save_directory = "user://smoke_main_menu_flows"
 	for stale in saves.list_saves():
 		saves.delete_save(String(stale.get("world_id", "")))
 	saves.set_active_world("")
 	main.game_started = false
+	menu._on_singleplayer_pressed()
+	if not _expect(menu.empty_saves_label.visible and not menu.world_scroll.visible, "An empty selector must invite the player to create a world"):
+		return
 	var fixture := _valid_save("Shared name", 12)
 	var first_id: String = saves.create_save(fixture)
 	var second_id: String = saves.create_save(_valid_save("Shared name", 34))
 	if not _expect(not first_id.is_empty() and not second_id.is_empty() and first_id != second_id, "Same-name worlds must keep independent save IDs"):
 		return
-	menu._on_singleplayer_pressed()
-	if not _expect(menu.save_items.item_count == 2, "World selection must list saved worlds"):
+	var fixture_thumbnail := Image.create(960, 540, false, Image.FORMAT_RGB8)
+	fixture_thumbnail.fill(Color("#b3663b"))
+	if not _expect(saves.write_world_thumbnail(first_id, fixture_thumbnail), "Fixture world thumbnail must be writable"):
 		return
-	menu.save_items.select(0)
-	menu._on_save_selected(0)
-	menu._on_delete_selected_pressed()
-	if not _expect(menu.delete_confirmation.visible and saves.list_saves().size() == 2, "Delete must require confirmation and preserve saves before confirmation"):
+	menu._on_singleplayer_pressed()
+	if not _expect(menu.world_cards.size() == 2 and menu.card_list.get_child_count() == 2 and menu.world_scroll.visible, "World selection must show one card per saved world"):
+		return
+	var first_card: WorldSaveCard = menu.get_world_card(first_id)
+	var second_card: WorldSaveCard = menu.get_world_card(second_id)
+	if not _expect(first_card.preview.texture != null and first_card.preview.texture.get_width() == 480 and first_card.preview.texture.resource_path.is_empty(), "World with a saved screenshot must display its gameplay preview"):
+		return
+	if not _expect(second_card.preview.texture != null and second_card.preview.texture.resource_path.ends_with("world_thumbnail_placeholder.png"), "Worlds without screenshots must use the built-in placeholder"):
+		return
+	var first_card_id := first_card.world_id
+	var first_name := first_card.name_label.text
+	first_card.delete_button.pressed.emit()
+	if not _expect(menu.delete_confirmation.visible and saves.list_saves().size() == 2 and menu.delete_confirmation.dialog_text.contains(first_name), "Delete must name the selected world and require confirmation"):
 		return
 	menu.delete_confirmation.hide() # Cancel leaves the selected save intact.
-	if not _expect(saves.read_save(menu._save_ids[0]).get("ok", false), "Canceling deletion must preserve the selected save"):
+	if not _expect(saves.read_save(first_card_id).get("ok", false), "Canceling deletion must preserve the selected save"):
 		return
 	menu._on_delete_confirmed()
-	if not _expect(saves.list_saves().size() == 1, "Confirmed deletion must remove only the selected world"):
+	if not _expect(not saves.read_save(first_card_id).get("ok", false) and saves.list_saves().size() == 1, "Confirmed deletion must remove only the selected world"):
 		return
-	menu.save_items.select(0)
-	menu._on_load_selected_pressed()
-	if not _expect(main.game_started and saves.active_world_id == menu._save_ids[0], "Loading a world must activate its selected save"):
+	var remaining_id: String = menu.world_cards[0].world_id
+	menu.world_cards[0].play_button.pressed.emit()
+	if not _expect(main.game_started and saves.active_world_id == remaining_id, "Play must load the world matching the card's stable ID"):
 		return
 	await main.return_to_title()
+	var invalid_id: String = saves.create_save(_valid_save("Invalid world", 55))
+	var invalid_path := ProjectSettings.globalize_path("%s/%s.json" % [saves.save_directory, invalid_id])
+	var invalid_file := FileAccess.open(invalid_path, FileAccess.WRITE)
+	invalid_file.store_string(JSON.stringify({"save_format_version": 999, "world_generation_version": 1}))
+	invalid_file.close()
+	menu._on_singleplayer_pressed()
+	var invalid_card: WorldSaveCard
+	for candidate in menu.world_cards:
+		if candidate.world_id == invalid_id:
+			invalid_card = candidate
+	if not _expect(invalid_card != null and invalid_card.play_button.disabled and not invalid_card.delete_button.disabled, "Non-loadable saves must stay visible, deletable, and not playable"):
+		return
+	invalid_card.delete_button.pressed.emit()
+	if not _expect(menu.delete_confirmation.dialog_text.contains(invalid_card.name_label.text), "Invalid-save confirmation must identify the visible world"):
+		return
+	menu._on_delete_confirmed()
+	if not _expect(not saves.read_save(invalid_id).get("ok", false), "Confirmed invalid-save deletion must delete that world"):
+		return
 	paused = false
 	menu._on_new_world_pressed()
 	menu.name_input.text = "New island"
@@ -104,12 +143,13 @@ func _run() -> void:
 	damaged_file.store_string("{damaged}")
 	damaged_file.close()
 	menu._on_singleplayer_pressed()
-	var recoverable_index: int = menu._save_ids.find(recoverable_id)
-	if not _expect(recoverable_index >= 0 and menu._save_loadable[recoverable_index], "A save with a readable backup must remain selectable for recovery"):
+	var recoverable_card: WorldSaveCard
+	for candidate in menu.world_cards:
+		if candidate.world_id == recoverable_id:
+			recoverable_card = candidate
+	if not _expect(recoverable_card != null and not recoverable_card.play_button.disabled, "A save with a readable backup must remain selectable for recovery"):
 		return
-	menu.save_items.select(recoverable_index)
-	menu._on_save_selected(recoverable_index)
-	menu._on_load_selected_pressed()
+	recoverable_card.play_button.pressed.emit()
 	if not _expect(main.game_started and saves.active_world_id != recoverable_id and saves.read_save(saves.active_world_id).get("ok", false), "Loading a backup must create a new writable save slot instead of activating the damaged primary"):
 		return
 	if not _expect(FileAccess.get_file_as_string(damaged_path) == "{damaged}", "Backup recovery must preserve the damaged source file for later inspection"):
